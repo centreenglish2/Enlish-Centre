@@ -15,7 +15,7 @@ from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
 from pdfgen.generator import generate_pdf
-from pdfgen.parser import parse_questions
+from pdfgen.parser import Question, parse_questions
 
 BASE = Path(__file__).resolve().parent
 DATA = BASE / "data"
@@ -217,7 +217,17 @@ async def pdf_cmd(message: Message):
 
     status = await message.answer("⏳ PDF बना रहा हूँ... 50 questions/page layout तैयार हो रहा है।")
     try:
-        questions = row.get("questions", [])
+        # MongoDB returns each saved question as a dict; the PDF generator
+        # expects Question dataclass instances. Support both formats so older
+        # and newly saved quizzes can generate PDFs.
+        questions = [
+            q if isinstance(q, Question) else Question(
+                number=int(q.get("number", index)),
+                text=str(q.get("text", "")),
+                options=list(q.get("options") or []),
+            )
+            for index, q in enumerate(row.get("questions", []), start=1)
+        ]
         output = GENERATED / f"English_Study_Centre_{quiz_id}.pdf"
         generate_pdf(
             questions=questions,
