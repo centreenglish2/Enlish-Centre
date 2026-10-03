@@ -168,7 +168,17 @@ async def get_set_no(message: Message, state: FSMContext):
             "set_no": value,
             "headline": data.get("headline") or DEFAULT_HEADLINE,
             "question_count": data["question_count"],
-            "questions": data["questions"],
+            # Convert parser Question dataclass objects to MongoDB-safe documents.
+            "questions": [
+                {
+                    "number": q.number,
+                    "text": q.text,
+                    "options": q.options,
+                }
+                if hasattr(q, "number") and hasattr(q, "text") and hasattr(q, "options")
+                else q
+                for q in data["questions"]
+            ],
         })
         client.close()
     except PyMongoError as exc:
