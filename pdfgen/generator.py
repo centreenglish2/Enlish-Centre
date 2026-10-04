@@ -72,12 +72,13 @@ def _question_html(q):
     )
 
 
-def _page_html(group, set_no):
+def _page_html(group, set_no, watermark):
     # Lock the exact heading and page structure; do not use per-quiz alternate styles.
     left_html = ''.join(_question_html(q) for q in group[:25])
     right_html = ''.join(_question_html(q) for q in group[25:50])
     set_label = str(set_no or "01").strip()
     return f'''<section class="paper-page">
+      <div class="watermark" aria-hidden="true">{_e(watermark or 'ENGLISH STUDY CENTRE')}</div>
       <header class="header">
         <div class="headline">ENGLISH STUDY CENTRE</div>
         <div class="subtitle">QUESTION SET — SET {_e(set_label)}</div>
@@ -105,7 +106,7 @@ def generate_pdf(questions: list[Question], output_path: Path, headline: str = "
 
     groups = [questions[i:i + PAGE_QUESTION_LIMIT]
               for i in range(0, len(questions), PAGE_QUESTION_LIMIT)]
-    pages = ''.join(_page_html(group, set_no) for group in groups)
+    pages = ''.join(_page_html(group, set_no, watermark) for group in groups)
     html = f'''<!doctype html><html><head><meta charset="utf-8"><style>
 @font-face {{ font-family: NotoDev; src: url("{REGULAR.as_uri()}") format("truetype"); font-weight:400; }}
 @font-face {{ font-family: NotoDev; src: url("{BOLD.as_uri()}") format("truetype"); font-weight:700; }}
