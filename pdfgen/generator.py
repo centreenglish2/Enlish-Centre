@@ -66,15 +66,15 @@ def _page_html(group, set_no, watermark, subject=None, lesson=None, topic=None, 
     set_meta = f'<div class="set-meta">SET {_e(set_label)}</div>' if set_label else ''
     return f'''<section class="paper-page">
       <div class="watermark" aria-hidden="true">{_e(watermark or 'ENGLISH STUDY CENTRE')}</div>
+      <div class="metadata">
+        <div class="meta-left">{left_meta}</div>
+        <div class="meta-right">{right_meta}{set_meta}</div>
+      </div>
       <header class="header">
         <div class="headline">ENGLISH STUDY CENTRE</div>
         <div class="school-name">AKASHI SASARAM</div>
         <div class="phone">Mob. No. 7050492611</div>
       </header>
-      <div class="metadata">
-        <div class="meta-left">{left_meta}</div>
-        <div class="meta-right">{right_meta}{set_meta}</div>
-      </div>
       <div class="rule"></div>
       <main class="columns">
         <div class="column">{left_html}</div>
@@ -108,15 +108,15 @@ html, body {{ margin:0; padding:0; font-family:NotoDev,"DejaVu Sans",sans-serif;
 .paper-page {{ width:210mm; height:297mm; padding:7mm 9mm 5mm; position:relative; display:block; page-break-after:always; break-after:page; overflow:hidden; }}
 .paper-page:last-child {{ page-break-after:auto; break-after:auto; }}
 .watermark {{ position:absolute; z-index:0; top:52%; left:50%; transform:translate(-50%,-50%) rotate(-35deg); white-space:nowrap; font-size:30pt; font-weight:700; letter-spacing:1px; color:rgba(0,0,0,.065); pointer-events:none; }}
-.header {{ position:relative; z-index:1; text-align:center; padding:1mm 0 0; }}
-.headline {{ font-family:"DejaVu Serif",serif; font-size:25pt; font-weight:900; line-height:1.05; letter-spacing:.15px; }}
+.header {{ position:relative; z-index:1; text-align:center; padding:7mm 0 0; min-height:30mm; }}
+.headline {{ font-family:"DejaVu Serif",serif; font-size:25pt; font-weight:900; line-height:1.05; letter-spacing:.15px; white-space:nowrap; }}
 .school-name {{ font-family:"DejaVu Serif",serif; font-size:17pt; font-weight:800; line-height:1.12; margin-top:1.3mm; }}
 .phone {{ font-family:"DejaVu Sans",sans-serif; font-size:12pt; font-weight:700; line-height:1.1; margin-top:.8mm; }}
-.metadata {{ position:relative; z-index:1; display:flex; justify-content:space-between; align-items:flex-start; gap:8mm; margin-top:2mm; font-size:9pt; line-height:1.15; font-weight:700; min-height:0; }}
-.meta-left,.meta-right {{ width:50%; min-width:0; }}
-.meta-right {{ text-align:right; }}
+.metadata {{ position:absolute; z-index:2; top:1.5mm; left:2mm; right:2mm; display:flex; justify-content:space-between; align-items:flex-start; gap:4mm; font-size:9pt; line-height:1.15; font-weight:700; }}
+.meta-left,.meta-right {{ width:auto; min-width:0; max-width:30%; border:2mm solid #e58b50; padding:2mm 3mm; background:rgba(255,255,255,.96); }}
+.meta-right {{ text-align:right; margin-left:auto; }}
 .set-meta {{ font-size:8pt; font-weight:400; }}
-.rule {{ position:relative; z-index:1; border-top:1px solid #333; margin:1.5mm 0 1.5mm; }}
+.rule {{ position:relative; z-index:1; border-top:1px solid #333; margin:10mm 0 1.5mm; }}
 /* Keep all content in normal page flow. Absolute-positioned columns could
    fragment at the page boundary and paint Q25/Q50 above the next page header.
    The rule is followed immediately by two fixed-width columns; compact spacing
