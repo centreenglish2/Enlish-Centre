@@ -130,11 +130,12 @@ html, body {{ margin:0; padding:0; font-family:NotoDev,"DejaVu Sans",sans-serif;
    fragment at the page boundary and paint Q25/Q50 above the next page header.
    The rule is followed immediately by two fixed-width columns; compact spacing
    leaves enough room for 25 questions per column without clipping. */
-.columns {{ position:relative; z-index:1; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:7mm; height:242mm; min-height:0; overflow:hidden; }}
-.column {{ min-width:0; min-height:0; height:100%; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-start; gap:2.0mm; }}
-.question {{ flex:none; break-inside:avoid; page-break-inside:avoid; margin:0; font-size:6.9pt; line-height:1.08; }}
-.question-text {{ margin:0 0 .2mm; font-weight:600; overflow-wrap:anywhere; }}
+.columns {{ position:relative; z-index:1; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:7mm; height:242mm; min-height:0; overflow:visible; }}
+.column {{ min-width:0; min-height:0; height:100%; overflow:visible; display:flex; flex-direction:column; justify-content:flex-start; gap:.75mm; }}
+.question {{ flex:none; break-inside:avoid; page-break-inside:avoid; margin:0; font-size:6.35pt; line-height:1.02; }}
+.question-text {{ margin:0 0 .12mm; font-weight:600; overflow-wrap:anywhere; }}
 .options {{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:2mm; margin-left:1mm; }}
-.option {{ font-size:6.5pt; line-height:1.06; overflow-wrap:anywhere; margin:0; }}
+.question-text, .option {{ hyphens:none; }}
+.option {{ font-size:6.0pt; line-height:1.0; overflow-wrap:anywhere; margin:0; }}
 </style></head><body>{pages}</body></html>'''
     HTML(string=html, base_url=str(BASE)).write_pdf(str(output_path))
