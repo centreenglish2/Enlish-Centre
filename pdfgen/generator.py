@@ -108,15 +108,15 @@ html, body {{ margin:0; padding:0; font-family:NotoDev,"DejaVu Sans",sans-serif;
 .paper-page {{ width:210mm; height:297mm; padding:7mm 9mm 5mm; position:relative; display:block; page-break-after:always; break-after:page; overflow:hidden; }}
 .paper-page:last-child {{ page-break-after:auto; break-after:auto; }}
 .watermark {{ position:absolute; z-index:0; top:52%; left:50%; transform:translate(-50%,-50%) rotate(-35deg); white-space:nowrap; font-size:30pt; font-weight:700; letter-spacing:1px; color:rgba(0,0,0,.065); pointer-events:none; }}
-.header {{ position:relative; z-index:1; text-align:center; padding:7mm 0 0; min-height:30mm; }}
+.header {{ position:relative; z-index:1; text-align:center; padding:2mm 0 0; min-height:28mm; }}
 .headline {{ font-family:"DejaVu Serif",serif; font-size:25pt; font-weight:900; line-height:1.05; letter-spacing:.15px; white-space:nowrap; }}
 .school-name {{ font-family:"DejaVu Serif",serif; font-size:17pt; font-weight:800; line-height:1.12; margin-top:1.3mm; }}
 .phone {{ font-family:"DejaVu Sans",sans-serif; font-size:12pt; font-weight:700; line-height:1.1; margin-top:.8mm; }}
-.metadata {{ position:absolute; z-index:2; top:1.5mm; left:2mm; right:2mm; display:flex; justify-content:space-between; align-items:flex-start; gap:4mm; font-size:9pt; line-height:1.15; font-weight:700; }}
-.meta-left,.meta-right {{ width:auto; min-width:0; max-width:30%; border:2mm solid #e58b50; padding:2mm 3mm; background:rgba(255,255,255,.96); }}
+.metadata {{ position:absolute; z-index:2; top:2mm; left:2mm; right:2mm; display:flex; justify-content:space-between; align-items:flex-start; gap:4mm; font-size:9pt; line-height:1.15; font-weight:700; }}
+.meta-left,.meta-right {{ width:auto; min-width:0; max-width:30%; border:0; padding:0; background:transparent; }}
 .meta-right {{ text-align:right; margin-left:auto; }}
 .set-meta {{ font-size:8pt; font-weight:400; }}
-.rule {{ position:relative; z-index:1; border-top:1px solid #333; margin:10mm 0 1.5mm; }}
+.rule {{ position:relative; z-index:1; border-top:1px solid #333; margin:3mm 0 1.5mm; }}
 /* Keep all content in normal page flow. Absolute-positioned columns could
    fragment at the page boundary and paint Q25/Q50 above the next page header.
    The rule is followed immediately by two fixed-width columns; compact spacing
