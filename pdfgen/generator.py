@@ -1,8 +1,8 @@
 """Generate the single, locked English Study Centre exam-paper layout.
 
 The PDF format is intentionally fixed: A4 portrait, centered title, one rule,
-two columns, questions 1-25 on the left and 26-50 on the right. No alternate
-styles, themes, watermark, or page footer are rendered.
+two columns, questions 1-25 on the left and 26-50 on the right, with a subtle
+ENGLISH STUDY CENTRE watermark on every page.
 """
 from html import escape
 from pathlib import Path
@@ -95,8 +95,8 @@ def generate_pdf(questions: list[Question], output_path: Path, headline: str = "
                  set_no: str | None = None, watermark: str = "ENGLISH STUDY CENTRE"):
     """Write a PDF using only the locked 50-questions-per-page layout.
 
-    Legacy arguments remain accepted so existing bot code keeps working, but
-    headline/subject/topic/watermark cannot change the visual template.
+    Legacy arguments remain accepted so existing bot code keeps working. The
+    layout remains fixed; a light watermark is printed on every page.
     """
     if not questions:
         raise ValueError("No questions to render")
@@ -114,11 +114,12 @@ def generate_pdf(questions: list[Question], output_path: Path, headline: str = "
 html, body {{ margin:0; padding:0; font-family:NotoDev,sans-serif; color:#111; }}
 .paper-page {{ height:281mm; position:relative; display:flex; flex-direction:column; page-break-after:always; break-after:page; overflow:hidden; }}
 .paper-page:last-child {{ page-break-after:auto; break-after:auto; }}
-.header {{ text-align:center; flex:none; padding:3mm 0 1mm; }}
+.watermark {{ position:absolute; z-index:0; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-35deg); white-space:nowrap; font-size:27pt; font-weight:700; letter-spacing:1px; color:rgba(0,0,0,.065); pointer-events:none; }}
+.header {{ position:relative; z-index:1; text-align:center; flex:none; padding:3mm 0 1mm; }}
 .headline {{ font-size:16pt; font-weight:700; line-height:1.12; letter-spacing:.15px; }}
 .subtitle {{ font-size:8.5pt; line-height:1.2; margin-top:1mm; letter-spacing:.4px; }}
-.rule {{ border-top:1px solid #333; margin:2.5mm 0 2mm; flex:none; }}
-.columns {{ position:absolute; top:20mm; bottom:0; left:0; right:0; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:7mm; min-height:0; }}
+.rule {{ position:relative; z-index:1; border-top:1px solid #333; margin:2.5mm 0 2mm; flex:none; }}
+.columns {{ position:absolute; z-index:1; top:20mm; bottom:0; left:0; right:0; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:7mm; min-height:0; }}
 .column {{ min-width:0; overflow:hidden; }}
 .question {{ break-inside:avoid; margin:0 0 1.1mm; font-size:7.2pt; line-height:1.13; }}
 .question-text {{ margin:0 0 .35mm; font-weight:600; overflow-wrap:anywhere; }}
