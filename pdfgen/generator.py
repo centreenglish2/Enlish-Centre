@@ -8,7 +8,7 @@ from html import escape
 from pathlib import Path
 import re
 from weasyprint import HTML
-from .parser import Question
+from .parser import Question, split_inline_options
 
 BASE = Path(__file__).resolve().parents[1]
 FONT_DIR = BASE / "fonts"
@@ -22,38 +22,14 @@ def _e(value):
 
 
 def _split_inline_options(q):
-    """Split options embedded on the question line, while preserving parsed options."""
+    """Use the parser's shared option-label rules for inline questions."""
     text = str(q.text or "").strip()
     opts = list(q.options or [])
     if len([x for x in opts if str(x).strip()]) >= 2:
         return text, opts[:4]
-
-    matches = list(re.finditer(r'(?<!\S)\(?([A-Da-dकखगघ])\)\s*', text))
-    if len(matches) < 2:
-        matches = list(re.finditer(r'\(?([A-Da-dकखगघ])\)\s*', text))
-
-    valid = []
-    for labels in [('A', 'B', 'C', 'D'), ('a', 'b', 'c', 'd'), ('क', 'ख', 'ग', 'घ')]:
-        candidate = []
-        expected_index = 0
-        for match in matches:
-            letter = match.group(1)
-            if expected_index < 4 and letter == labels[expected_index]:
-                candidate.append(match)
-                expected_index += 1
-                if expected_index == 4:
-                    break
-        if len(candidate) >= 2:
-            valid = candidate
-            break
-    if len(valid) >= 2 and valid[0].start() > 0:
-        stem = text[:valid[0].start()].strip()
-        parsed = []
-        for i, match in enumerate(valid[:4]):
-            end = valid[i + 1].start() if i + 1 < len(valid) else len(text)
-            parsed.append(text[match.end():end].strip())
-        if stem and any(parsed):
-            return stem, parsed
+    stem, parsed = split_inline_options(text)
+    if parsed:
+        return stem, parsed[:4]
     return text, opts[:4]
 
 
