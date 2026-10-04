@@ -48,17 +48,33 @@ def _question_html(q):
     )
 
 
-def _page_html(group, set_no, watermark):
-    # Lock the exact heading and page structure; do not use per-quiz alternate styles.
+def _page_html(group, set_no, watermark, subject=None, lesson=None, topic=None, class_name=None):
+    # One fixed header design; optional metadata is omitted when not supplied.
     left_html = ''.join(_question_html(q) for q in group[:25])
     right_html = ''.join(_question_html(q) for q in group[25:50])
-    set_label = str(set_no or "01").strip()
+    set_label = str(set_no or "").strip()
+    left_meta = ''.join(
+        f'<div>{label}: {_e(value)}</div>'
+        for label, value in (("Sub", subject), ("Lesson", lesson))
+        if value and str(value).strip()
+    )
+    right_meta = ''.join(
+        f'<div>{label}: {_e(value)}</div>'
+        for label, value in (("Topic", topic), ("Class", class_name))
+        if value and str(value).strip()
+    )
+    set_meta = f'<div class="set-meta">SET {_e(set_label)}</div>' if set_label else ''
     return f'''<section class="paper-page">
       <div class="watermark" aria-hidden="true">{_e(watermark or 'ENGLISH STUDY CENTRE')}</div>
       <header class="header">
         <div class="headline">ENGLISH STUDY CENTRE</div>
-        <div class="subtitle">QUESTION SET — SET {_e(set_label)}</div>
+        <div class="school-name">AKASHI SASARAM</div>
+        <div class="phone">Mob. No. 7050492611</div>
       </header>
+      <div class="metadata">
+        <div class="meta-left">{left_meta}</div>
+        <div class="meta-right">{right_meta}{set_meta}</div>
+      </div>
       <div class="rule"></div>
       <main class="columns">
         <div class="column">{left_html}</div>
@@ -66,10 +82,10 @@ def _page_html(group, set_no, watermark):
       </main>
     </section>'''
 
-
 def generate_pdf(questions: list[Question], output_path: Path, headline: str = "ENGLISH STUDY CENTRE",
                  subject: str | None = None, topic: str | None = None,
-                 set_no: str | None = None, watermark: str = "ENGLISH STUDY CENTRE"):
+                 set_no: str | None = None, watermark: str = "ENGLISH STUDY CENTRE",
+                 lesson: str | None = None, class_name: str | None = None):
     """Write a PDF using only the locked 50-questions-per-page layout.
 
     Legacy arguments remain accepted so existing bot code keeps working. The
@@ -82,21 +98,26 @@ def generate_pdf(questions: list[Question], output_path: Path, headline: str = "
 
     groups = [questions[i:i + PAGE_QUESTION_LIMIT]
               for i in range(0, len(questions), PAGE_QUESTION_LIMIT)]
-    pages = ''.join(_page_html(group, set_no, watermark) for group in groups)
+    pages = ''.join(_page_html(group, set_no, watermark, subject, lesson, topic, class_name) for group in groups)
     html = f'''<!doctype html><html><head><meta charset="utf-8"><style>
 @font-face {{ font-family: NotoDev; src: url("{REGULAR.as_uri()}") format("truetype"); font-weight:400; }}
 @font-face {{ font-family: NotoDev; src: url("{BOLD.as_uri()}") format("truetype"); font-weight:700; }}
-@page {{ size:A4; margin:8mm 9mm 8mm; }}
+@page {{ size:A4; margin:7mm 9mm 8mm; }}
 * {{ box-sizing:border-box; }}
-html, body {{ margin:0; padding:0; font-family:NotoDev,sans-serif; color:#111; }}
-.paper-page {{ height:281mm; position:relative; display:flex; flex-direction:column; page-break-after:always; break-after:page; overflow:hidden; }}
+html, body {{ margin:0; padding:0; font-family:NotoDev,"DejaVu Sans",sans-serif; color:#111; }}
+.paper-page {{ height:282mm; position:relative; display:flex; flex-direction:column; page-break-after:always; break-after:page; overflow:hidden; }}
 .paper-page:last-child {{ page-break-after:auto; break-after:auto; }}
-.watermark {{ position:absolute; z-index:0; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-35deg); white-space:nowrap; font-size:27pt; font-weight:700; letter-spacing:1px; color:rgba(0,0,0,.065); pointer-events:none; }}
-.header {{ position:relative; z-index:1; text-align:center; flex:none; padding:3mm 0 1mm; }}
-.headline {{ font-size:16pt; font-weight:700; line-height:1.12; letter-spacing:.15px; }}
-.subtitle {{ font-size:8.5pt; line-height:1.2; margin-top:1mm; letter-spacing:.4px; }}
-.rule {{ position:relative; z-index:1; border-top:1px solid #333; margin:2.5mm 0 2mm; flex:none; }}
-.columns {{ position:absolute; z-index:1; top:20mm; bottom:0; left:0; right:0; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:7mm; min-height:0; }}
+.watermark {{ position:absolute; z-index:0; top:52%; left:50%; transform:translate(-50%,-50%) rotate(-35deg); white-space:nowrap; font-size:30pt; font-weight:700; letter-spacing:1px; color:rgba(0,0,0,.065); pointer-events:none; }}
+.header {{ position:relative; z-index:1; text-align:center; flex:none; padding:1mm 0 0; }}
+.headline {{ font-family:"DejaVu Serif",serif; font-size:25pt; font-weight:900; line-height:1.05; letter-spacing:.15px; }}
+.school-name {{ font-family:"DejaVu Serif",serif; font-size:17pt; font-weight:800; line-height:1.12; margin-top:1.3mm; }}
+.phone {{ font-family:"DejaVu Sans",sans-serif; font-size:12pt; font-weight:700; line-height:1.1; margin-top:.8mm; }}
+.metadata {{ position:relative; z-index:1; display:flex; justify-content:space-between; align-items:flex-start; gap:8mm; margin-top:2.5mm; font-size:9pt; line-height:1.18; font-weight:700; min-height:0; }}
+.meta-left,.meta-right {{ width:50%; min-width:0; }}
+.meta-right {{ text-align:right; }}
+.set-meta {{ font-size:8pt; font-weight:400; }}
+.rule {{ position:relative; z-index:1; border-top:1px solid #333; margin:2mm 0 2mm; flex:none; }}
+.columns {{ position:absolute; z-index:1; top:37mm; bottom:0; left:0; right:0; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:7mm; min-height:0; }}
 .column {{ min-width:0; overflow:hidden; }}
 .question {{ break-inside:avoid; margin:0 0 1.1mm; font-size:7.2pt; line-height:1.13; }}
 .question-text {{ margin:0 0 .35mm; font-weight:600; overflow-wrap:anywhere; }}
