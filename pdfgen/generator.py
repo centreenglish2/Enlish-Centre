@@ -102,13 +102,13 @@ def generate_pdf(questions: list[Question], output_path: Path, headline: str = "
     html = f'''<!doctype html><html><head><meta charset="utf-8"><style>
 @font-face {{ font-family: NotoDev; src: url("{REGULAR.as_uri()}") format("truetype"); font-weight:400; }}
 @font-face {{ font-family: NotoDev; src: url("{BOLD.as_uri()}") format("truetype"); font-weight:700; }}
-@page {{ size:A4; margin:7mm 9mm 8mm; }}
+@page {{ size:A4; margin:0; }}
 * {{ box-sizing:border-box; }}
 html, body {{ margin:0; padding:0; font-family:NotoDev,"DejaVu Sans",sans-serif; color:#111; }}
-.paper-page {{ height:282mm; position:relative; display:flex; flex-direction:column; page-break-after:always; break-after:page; overflow:hidden; }}
+.paper-page {{ width:210mm; height:297mm; padding:7mm 9mm 8mm; position:relative; display:block; page-break-after:always; break-after:page; overflow:hidden; }}
 .paper-page:last-child {{ page-break-after:auto; break-after:auto; }}
 .watermark {{ position:absolute; z-index:0; top:52%; left:50%; transform:translate(-50%,-50%) rotate(-35deg); white-space:nowrap; font-size:30pt; font-weight:700; letter-spacing:1px; color:rgba(0,0,0,.065); pointer-events:none; }}
-.header {{ position:relative; z-index:1; text-align:center; flex:none; padding:1mm 0 0; }}
+.header {{ position:relative; z-index:1; text-align:center; padding:1mm 0 0; }}
 .headline {{ font-family:"DejaVu Serif",serif; font-size:25pt; font-weight:900; line-height:1.05; letter-spacing:.15px; }}
 .school-name {{ font-family:"DejaVu Serif",serif; font-size:17pt; font-weight:800; line-height:1.12; margin-top:1.3mm; }}
 .phone {{ font-family:"DejaVu Sans",sans-serif; font-size:12pt; font-weight:700; line-height:1.1; margin-top:.8mm; }}
@@ -116,9 +116,11 @@ html, body {{ margin:0; padding:0; font-family:NotoDev,"DejaVu Sans",sans-serif;
 .meta-left,.meta-right {{ width:50%; min-width:0; }}
 .meta-right {{ text-align:right; }}
 .set-meta {{ font-size:8pt; font-weight:400; }}
-.rule {{ position:relative; z-index:1; border-top:1px solid #333; margin:2mm 0 2mm; flex:none; }}
-.columns {{ position:absolute; z-index:1; top:37mm; bottom:0; left:0; right:0; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:7mm; min-height:0; }}
-.column {{ min-width:0; overflow:hidden; }}
+.rule {{ position:relative; z-index:1; border-top:1px solid #333; margin:2mm 0 2mm; }}
+/* A fixed A4 page canvas keeps header/metadata clear of questions and clips
+   each column inside its own page so no questions spill onto the next page. */
+.columns {{ position:absolute; z-index:1; top:50mm; bottom:8mm; left:9mm; right:9mm; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:7mm; min-height:0; overflow:hidden; }}
+.column {{ min-width:0; min-height:0; max-height:100%; overflow:hidden; }}
 .question {{ break-inside:avoid; margin:0 0 1.1mm; font-size:7.2pt; line-height:1.13; }}
 .question-text {{ margin:0 0 .35mm; font-weight:600; overflow-wrap:anywhere; }}
 .options {{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:2.2mm; margin-left:1.2mm; }}
