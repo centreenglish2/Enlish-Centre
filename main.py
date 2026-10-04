@@ -53,7 +53,9 @@ def clean_optional(value: str | None) -> str | None:
 
 class Form(StatesGroup):
     subject = State()
+    lesson = State()
     topic = State()
+    class_name = State()
     set_no = State()
 
 
@@ -63,7 +65,7 @@ dp = Dispatcher(storage=MemoryStorage())
 HELP = (
     "📚 English Study Centre Mock Test Bot\n\n"
     "1. TXT file upload करें।\n"
-    "2. Bot Subject, Topic और Set No. पूछेगा — तीनों optional हैं।\n"
+    "2. Bot Subject, Lesson, Topic, Class और Set No. पूछेगा — सभी optional हैं।\n"
     "3. Quiz ID मिलेगा।\n"
     "4. /pdf QUIZ_ID भेजकर PDF लें।\n\n"
     "50 questions हर page पर होंगे। Hindi Unicode और options A) B) C) D) सुरक्षित रहेंगे।\n"
@@ -138,6 +140,14 @@ async def txt_upload(message: Message, state: FSMContext):
 async def get_subject(message: Message, state: FSMContext):
     value = clean_optional(message.text)
     await state.update_data(subject=value)
+    await state.set_state(Form.lesson)
+    await message.answer("Lesson: ?\n(नहीं देना हो तो /skip)")
+
+
+@dp.message(Form.lesson)
+async def get_lesson(message: Message, state: FSMContext):
+    value = clean_optional(message.text)
+    await state.update_data(lesson=value)
     await state.set_state(Form.topic)
     await message.answer("Topic: ?\n(नहीं देना हो तो /skip)")
 
@@ -146,6 +156,14 @@ async def get_subject(message: Message, state: FSMContext):
 async def get_topic(message: Message, state: FSMContext):
     value = clean_optional(message.text)
     await state.update_data(topic=value)
+    await state.set_state(Form.class_name)
+    await message.answer("Class: ?\n(नहीं देना हो तो /skip)")
+
+
+@dp.message(Form.class_name)
+async def get_class_name(message: Message, state: FSMContext):
+    value = clean_optional(message.text)
+    await state.update_data(class_name=value)
     await state.set_state(Form.set_no)
     await message.answer("Set No: ?\n(नहीं देना हो तो /skip)")
 
@@ -164,7 +182,9 @@ async def get_set_no(message: Message, state: FSMContext):
             "user_id": message.from_user.id,
             "source_file": data["source_file"],
             "subject": data.get("subject"),
+            "lesson": data.get("lesson"),
             "topic": data.get("topic"),
+            "class_name": data.get("class_name"),
             "set_no": value,
             "headline": data.get("headline") or DEFAULT_HEADLINE,
             "question_count": data["question_count"],
@@ -233,8 +253,9 @@ async def pdf_cmd(message: Message):
             questions=questions,
             output_path=output,
             headline=row.get("headline") or DEFAULT_HEADLINE,
-            subject=row.get("subject"), topic=row.get("topic"), set_no=row.get("set_no"),
-            watermark=WATERMARK_TEXT,
+            subject=row.get("subject"), lesson=row.get("lesson"),
+            topic=row.get("topic"), class_name=row.get("class_name"),
+            set_no=row.get("set_no"), watermark=WATERMARK_TEXT,
         )
         await status.edit_text("✅ PDF तैयार है।")
         await message.answer_document(FSInputFile(output), caption=f"📄 Quiz ID: {quiz_id}\n{len(questions)} questions")
