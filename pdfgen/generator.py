@@ -69,11 +69,17 @@ def _page_html(group, set_no, watermark, subject=None, lesson=None, topic=None, 
       <header class="header">
         <div class="header-row">
           <div class="meta-left">{left_meta}</div>
-          <div class="headline">ENGLISH STUDY CENTRE</div>
+          <div class="center-head">
+            <div class="title-line">
+              <span class="orange-mark">|</span>
+              <span class="headline">ENGLISH STUDY CENTRE</span>
+              <span class="orange-mark">|</span>
+            </div>
+            <div class="school-name">AKASHI SASARAM</div>
+            <div class="phone">Mob. No. 7050492611</div>
+          </div>
           <div class="meta-right">{right_meta}{set_meta}</div>
         </div>
-        <div class="school-name">AKASHI SASARAM</div>
-        <div class="phone">Mob. No. 7050492611</div>
       </header>
       <div class="rule"></div>
       <main class="columns">
@@ -108,16 +114,18 @@ html, body {{ margin:0; padding:0; font-family:NotoDev,"DejaVu Sans",sans-serif;
 .paper-page {{ width:210mm; height:297mm; padding:7mm 9mm 5mm; position:relative; display:block; page-break-after:always; break-after:page; overflow:hidden; }}
 .paper-page:last-child {{ page-break-after:auto; break-after:auto; }}
 .watermark {{ position:absolute; z-index:0; top:52%; left:50%; transform:translate(-50%,-50%) rotate(-35deg); white-space:nowrap; font-size:30pt; font-weight:700; letter-spacing:1px; color:rgba(0,0,0,.065); pointer-events:none; }}
-.header {{ position:relative; z-index:1; text-align:center; padding:1.5mm 0 0; min-height:28mm; }}
-.header-row {{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; column-gap:3mm; min-height:9mm; padding:0 3mm; }}
-.headline {{ font-family:"DejaVu Serif",serif; font-size:25pt; font-weight:900; line-height:1.05; letter-spacing:.15px; white-space:nowrap; }}
-.school-name {{ font-family:"DejaVu Serif",serif; font-size:17pt; font-weight:800; line-height:1.12; margin-top:1.3mm; }}
-.phone {{ font-family:"DejaVu Sans",sans-serif; font-size:12pt; font-weight:700; line-height:1.1; margin-top:.8mm; }}
-.meta-left,.meta-right {{ width:24mm; min-width:24mm; border:0; padding:0; background:transparent; font-size:8pt; line-height:1.18; font-weight:700; }}
-.meta-left {{ text-align:right; justify-self:end; }}
-.meta-right {{ text-align:left; justify-self:start; }}
-.set-meta {{ font-size:8pt; font-weight:700; }}
-.rule {{ position:relative; z-index:1; border-top:1px solid #333; margin:3mm 0 1.5mm; }}
+.header {{ position:relative; z-index:1; padding:1mm 0 0; min-height:27mm; }}
+.header-row {{ display:flex; align-items:flex-start; justify-content:space-between; width:100%; padding:0 5mm; }}
+.meta-left,.meta-right {{ width:34mm; min-width:34mm; border:0; padding-top:1.2mm; background:transparent; font-size:8.4pt; line-height:1.32; font-weight:700; white-space:nowrap; }}
+.meta-left {{ text-align:left; }}
+.meta-right {{ text-align:right; }}
+.center-head {{ flex:1 1 auto; text-align:center; padding:0 3mm; min-width:0; }}
+.title-line {{ display:flex; align-items:center; justify-content:center; gap:2.2mm; white-space:nowrap; }}
+.orange-mark {{ color:#f28c00; font-family:"DejaVu Sans",sans-serif; font-size:25pt; font-weight:900; line-height:1; }}
+.headline {{ font-family:"DejaVu Serif",serif; font-size:24pt; font-weight:900; line-height:1.02; letter-spacing:.1px; white-space:nowrap; }}
+.school-name {{ font-family:"DejaVu Serif",serif; font-size:15pt; font-weight:800; line-height:1.1; margin-top:.8mm; }}
+.phone {{ font-family:"DejaVu Sans",sans-serif; font-size:10.5pt; font-weight:700; line-height:1.08; margin-top:.5mm; }}
+.rule {{ position:relative; z-index:1; border-top:1px solid #333; margin:2.2mm 0 1.5mm; }}
 /* Keep all content in normal page flow. Absolute-positioned columns could
    fragment at the page boundary and paint Q25/Q50 above the next page header.
    The rule is followed immediately by two fixed-width columns; compact spacing
