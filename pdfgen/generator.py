@@ -63,7 +63,7 @@ def _page_html(group, set_no, watermark, subject=None, lesson=None, topic=None, 
         for label, value in (("Topic", topic), ("Class", class_name))
         if value and str(value).strip()
     )
-    set_meta = f'<div class="set-meta">SET {_e(set_label)}</div>' if set_label else ''
+    set_meta = f'<div>Set No: {_e(set_label)}</div>' if set_label else ''
     return f'''<section class="paper-page">
       <div class="watermark" aria-hidden="true">{_e(watermark or 'ENGLISH STUDY CENTRE')}</div>
       <header class="header">
@@ -109,20 +109,21 @@ html, body {{ margin:0; padding:0; font-family:NotoDev,"DejaVu Sans",sans-serif;
 .paper-page:last-child {{ page-break-after:auto; break-after:auto; }}
 .watermark {{ position:absolute; z-index:0; top:52%; left:50%; transform:translate(-50%,-50%) rotate(-35deg); white-space:nowrap; font-size:30pt; font-weight:700; letter-spacing:1px; color:rgba(0,0,0,.065); pointer-events:none; }}
 .header {{ position:relative; z-index:1; text-align:center; padding:1.5mm 0 0; min-height:28mm; }}
-.header-row {{ display:grid; grid-template-columns:minmax(30mm,1fr) auto minmax(30mm,1fr); align-items:center; column-gap:3mm; min-height:9mm; }}
+.header-row {{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; column-gap:3mm; min-height:9mm; padding:0 3mm; }}
 .headline {{ font-family:"DejaVu Serif",serif; font-size:25pt; font-weight:900; line-height:1.05; letter-spacing:.15px; white-space:nowrap; }}
 .school-name {{ font-family:"DejaVu Serif",serif; font-size:17pt; font-weight:800; line-height:1.12; margin-top:1.3mm; }}
 .phone {{ font-family:"DejaVu Sans",sans-serif; font-size:12pt; font-weight:700; line-height:1.1; margin-top:.8mm; }}
-.meta-left,.meta-right {{ width:auto; min-width:0; max-width:30%; border:0; padding:0; background:transparent; font-size:8pt; line-height:1.1; font-weight:700; }}
-.meta-right {{ text-align:right; margin-left:auto; }}
-.set-meta {{ font-size:8pt; font-weight:400; }}
+.meta-left,.meta-right {{ width:24mm; min-width:24mm; border:0; padding:0; background:transparent; font-size:8pt; line-height:1.18; font-weight:700; }}
+.meta-left {{ text-align:right; justify-self:end; }}
+.meta-right {{ text-align:left; justify-self:start; }}
+.set-meta {{ font-size:8pt; font-weight:700; }}
 .rule {{ position:relative; z-index:1; border-top:1px solid #333; margin:3mm 0 1.5mm; }}
 /* Keep all content in normal page flow. Absolute-positioned columns could
    fragment at the page boundary and paint Q25/Q50 above the next page header.
    The rule is followed immediately by two fixed-width columns; compact spacing
    leaves enough room for 25 questions per column without clipping. */
 .columns {{ position:relative; z-index:1; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:7mm; height:242mm; min-height:0; overflow:hidden; }}
-.column {{ min-width:0; min-height:0; height:100%; overflow:hidden; display:flex; flex-direction:column; justify-content:space-between; }}
+.column {{ min-width:0; min-height:0; height:100%; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-start; gap:2.0mm; }}
 .question {{ flex:none; break-inside:avoid; page-break-inside:avoid; margin:0; font-size:6.9pt; line-height:1.08; }}
 .question-text {{ margin:0 0 .2mm; font-weight:600; overflow-wrap:anywhere; }}
 .options {{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:2mm; margin-left:1mm; }}
