@@ -54,6 +54,7 @@ def clean_optional(value: str | None) -> str | None:
 class Form(StatesGroup):
     subject = State()
     lesson = State()
+    topic = State()
     section = State()
     class_name = State()
     set_no = State()
@@ -150,6 +151,14 @@ async def get_subject(message: Message, state: FSMContext):
 async def get_lesson(message: Message, state: FSMContext):
     value = clean_optional(message.text)
     await state.update_data(lesson=value)
+    await state.set_state(Form.topic)
+    await message.answer("Topic: ?\n(नहीं देना हो तो /skip)")
+
+
+@dp.message(Form.topic)
+async def get_topic(message: Message, state: FSMContext):
+    value = clean_optional(message.text)
+    await state.update_data(topic=value)
     await state.set_state(Form.section)
     await message.answer("Section: ?\n(नहीं देना हो तो /skip)")
 
@@ -185,6 +194,7 @@ async def get_set_no(message: Message, state: FSMContext):
             "source_file": data["source_file"],
             "subject": data.get("subject"),
             "lesson": data.get("lesson"),
+            "topic": data.get("topic"),
             "section": data.get("section"),
             "class_name": data.get("class_name"),
             "set_no": value,
@@ -295,8 +305,8 @@ async def pdf_cmd(message: Message):
             questions=questions,
             output_path=output,
             headline=row.get("headline") or DEFAULT_HEADLINE,
-            subject=row.get("subject"), lesson=row.get("lesson"),
-            section=row.get("section") if row.get("section") is not None else row.get("to" + "pic"), class_name=row.get("class_name"),
+            subject=row.get("subject"), lesson=row.get("lesson"), topic=row.get("topic"),
+            section=row.get("section"), class_name=row.get("class_name"),
             set_no=row.get("set_no"), watermark=WATERMARK_TEXT,
             pdf_mode=pdf_mode,
         )
