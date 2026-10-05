@@ -135,7 +135,7 @@ html, body {{ margin:0; padding:0; font-family:NotoDev,"DejaVu Sans",sans-serif;
 .header-row {{ display:flex; align-items:flex-start; justify-content:space-between; width:100%; padding:0 5mm; }}
 .meta-left,.meta-right {{ width:34mm; min-width:34mm; border:0; padding-top:1.2mm; background:transparent; font-size:8.4pt; line-height:1.32; font-weight:700; white-space:nowrap; }}
 .meta-left {{ text-align:left; }}
-.meta-right { text-align:right; padding-left:3mm; }}
+.meta-right {{ text-align:right; padding-left:3mm; }}
 .center-head {{ flex:1 1 auto; text-align:center; padding:0 3mm; min-width:0; }}
 .title-line {{ display:flex; align-items:center; justify-content:center; gap:2.2mm; white-space:nowrap; }}
 .orange-mark {{ color:#f28c00; font-family:"DejaVu Sans",sans-serif; font-size:25pt; font-weight:900; line-height:1; }}
