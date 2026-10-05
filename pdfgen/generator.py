@@ -149,7 +149,7 @@ html, body {{ margin:0; padding:0; font-family:NotoDev,"DejaVu Sans",sans-serif;
 .columns {{ position:relative; z-index:1; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:7mm; height:242mm; min-height:0; overflow:visible; }}
 .column {{ min-width:0; min-height:0; height:100%; overflow:visible; display:grid; align-content:stretch; gap:0; }}
 .question {{ flex:none; break-inside:avoid; page-break-inside:avoid; margin:0; font-size:6.35pt; line-height:1.02; }}
-.question-text {{ margin:0 0 .12mm; font-weight:600; color:red; overflow-wrap:anywhere; }}
+.question-text {{ margin:0 0 .12mm; font-weight:600; overflow-wrap:anywhere; }}
 .options {{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:2mm; margin-left:1mm; }}
 .question-text, .option {{ hyphens:none; }}
 .option {{ font-size:6.0pt; line-height:1.0; overflow-wrap:anywhere; margin:0; }}
