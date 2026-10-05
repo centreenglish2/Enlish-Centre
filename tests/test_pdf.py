@@ -23,7 +23,7 @@ def test_100_questions_create_two_pages_and_keep_ranges(tmp_path):
     qs = parse_questions(_question_bank(100))
     assert len(qs) == 100
     out = tmp_path / "test.pdf"
-    generate_pdf(qs, out, "ENGLISH STUDY CENTRE", subject="हिंदी", topic=None, set_no="01")
+    generate_pdf(qs, out, "ENGLISH STUDY CENTRE", subject="हिंदी", section=None, set_no="01")
 
     reader = PdfReader(str(out))
     assert len(reader.pages) == 2
