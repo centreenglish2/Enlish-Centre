@@ -129,7 +129,7 @@ def generate_pdf(questions: list[Question], output_path: Path, headline: str = "
 html, body {{ margin:0; padding:0; font-family:NotoDev,"DejaVu Sans",sans-serif; color:#111; }}
 .paper-page {{ width:210mm; height:297mm; padding:7mm 9mm 5mm; position:relative; display:block; page-break-after:always; break-after:page; overflow:hidden; }}
 .paper-page:last-child {{ page-break-after:auto; break-after:auto; }}
-.watermark {{ position:absolute; z-index:0; top:52%; left:50%; transform:translate(-50%,-50%) rotate(-35deg); white-space:nowrap; font-size:30pt; font-weight:700; letter-spacing:1px; color:rgba(0,0,0,.10); pointer-events:none; }}
+.watermark {{ position:absolute; z-index:0; top:52%; left:50%; transform:translate(-50%,-50%) rotate(-35deg); white-space:nowrap; font-size:30pt; font-weight:700; letter-spacing:1px; color:rgba(0,0,0,.15); pointer-events:none; }}
 .header {{ position:relative; z-index:1; padding:1mm 0 0; min-height:27mm; }}
 .header-row {{ display:flex; align-items:flex-start; justify-content:space-between; width:100%; padding:0 5mm; }}
 .meta-left,.meta-right {{ width:34mm; min-width:34mm; border:0; padding-top:1.2mm; background:transparent; font-size:8.4pt; line-height:1.32; font-weight:700; white-space:nowrap; }}
