@@ -85,6 +85,7 @@ def _page_html(group, set_no, watermark, subject=None, lesson=None, topic=None, 
             </div>
             <div class="school-name">AKASHI SASARAM</div>
             <div class="phone">Mob. No. 7050492611</div>
+            <div>Session: 2026-27</div>
           </div>
           <div class="meta-right">{right_meta}{set_meta}</div>
         </div>
