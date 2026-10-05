@@ -68,7 +68,9 @@ HELP = (
     "2. Bot Subject, Lesson, Topic, Class और Set No. पूछेगा — सभी optional हैं।\n"
     "3. Quiz ID मिलेगा।\n"
     "4. /pdf QUIZ_ID भेजकर PDF लें।\n\n"
-    "50 questions हर page पर होंगे। Hindi Unicode और options A) B) C) D) सुरक्षित रहेंगे।\n"
+    "Layout चुनने के लिए /toggle 50 या /toggle 100 भेजें।\n"
+    "/toggle 50 = 25 questions/page (बड़े और साफ़), /toggle 100 = 50 questions/page।\n"
+    "Hindi Unicode और options A) B) C) D) सुरक्षित रहेंगे।\n"
     "किसी optional field को छोड़ने के लिए /skip भेजें।"
 )
 
@@ -214,6 +216,34 @@ async def get_set_no(message: Message, state: FSMContext):
     )
 
 
+@dp.message(Command("toggle"))
+async def toggle_cmd(message: Message):
+    parts = (message.text or "").split(maxsplit=1)
+    if len(parts) != 2 or parts[1].strip() not in {"50", "100"}:
+        await message.answer(
+            "Usage: /toggle 50 या /toggle 100\n\n"
+            "50 = 25 questions per page (बड़ा, साफ़ layout)\n"
+            "100 = 50 questions per page (25 + 25 columns)"
+        )
+        return
+    mode = int(parts[1].strip())
+    try:
+        client, database = get_mongo()
+        database.user_settings.update_one(
+            {"_id": message.from_user.id},
+            {"$set": {"pdf_mode": mode}},
+            upsert=True,
+        )
+        client.close()
+    except PyMongoError as exc:
+        await message.answer(f"❌ MongoDB error: {type(exc).__name__}: {exc}")
+        return
+    if mode == 50:
+        await message.answer("✅ PDF layout set: 50\n25 questions per page — बड़ा और साफ़ format.")
+    else:
+        await message.answer("✅ PDF layout set: 100\n50 questions per page — 25 left + 25 right.")
+
+
 @dp.message(Command("pdf"))
 async def pdf_cmd(message: Message):
     parts = (message.text or "").split(maxsplit=1)
@@ -235,7 +265,19 @@ async def pdf_cmd(message: Message):
         await message.answer("❌ यह Quiz ID आपके account की नहीं है।")
         return
 
-    status = await message.answer("⏳ PDF बना रहा हूँ... 50 questions/page layout तैयार हो रहा है।")
+    try:
+        client, database = get_mongo()
+        settings = database.user_settings.find_one({"_id": message.from_user.id}) or {}
+        client.close()
+        pdf_mode = int(settings.get("pdf_mode", 100))
+        if pdf_mode not in (50, 100):
+            pdf_mode = 100
+    except PyMongoError as exc:
+        await message.answer(f"❌ MongoDB error: {type(exc).__name__}: {exc}")
+        return
+
+    per_page = 25 if pdf_mode == 50 else 50
+    status = await message.answer(f"⏳ PDF बना रहा हूँ... {per_page} questions/page layout तैयार हो रहा है।")
     try:
         # MongoDB returns each saved question as a dict; the PDF generator
         # expects Question dataclass instances. Support both formats so older
@@ -248,7 +290,7 @@ async def pdf_cmd(message: Message):
             )
             for index, q in enumerate(row.get("questions", []), start=1)
         ]
-        output = GENERATED / f"English_Study_Centre_{quiz_id}.pdf"
+        output = GENERATED / f"English_Study_Centre_{quiz_id}_M{pdf_mode}.pdf"
         generate_pdf(
             questions=questions,
             output_path=output,
@@ -256,6 +298,7 @@ async def pdf_cmd(message: Message):
             subject=row.get("subject"), lesson=row.get("lesson"),
             topic=row.get("topic"), class_name=row.get("class_name"),
             set_no=row.get("set_no"), watermark=WATERMARK_TEXT,
+            pdf_mode=pdf_mode,
         )
         await status.edit_text("✅ PDF तैयार है।")
         await message.answer_document(FSInputFile(output), caption=f"📄 Quiz ID: {quiz_id}\n{len(questions)} questions")
