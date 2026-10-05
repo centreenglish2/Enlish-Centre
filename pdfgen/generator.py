@@ -49,7 +49,7 @@ def _question_html(q):
     )
 
 
-def _page_html(group, set_no, watermark, subject=None, lesson=None, section=None, class_name=None, mode=100):
+def _page_html(group, set_no, watermark, subject=None, lesson=None, chapter=None, section=None, class_name=None, mode=100):
     # mode=50 => 25 questions per page; mode=100 => 50 questions per page.
     # Both layouts keep two columns; the 25/page layout simply uses fewer,
     # larger questions per column.
@@ -72,6 +72,7 @@ def _page_html(group, set_no, watermark, subject=None, lesson=None, section=None
         if value and str(value).strip()
     )
     set_meta = f'<div>Set No: {_e(set_label)}</div>' if set_label else ''
+    chapter_value = _e(chapter) if chapter and str(chapter).strip() else ''
     return f'''<section class="paper-page mode-{mode}">
       <div class="watermark" aria-hidden="true">{_e(watermark or 'ENGLISH STUDY CENTRE')}</div>
       <header class="header">
@@ -89,6 +90,7 @@ def _page_html(group, set_no, watermark, subject=None, lesson=None, section=None
           </div>
           <div class="meta-right">{right_meta}{set_meta}</div>
         </div>
+        <div class="chapter-box"><div class="chapter-label">CH:</div><div class="chapter-text">{chapter_value}</div></div>
       </header>
       <div class="rule"></div>
       <main class="columns">
@@ -100,7 +102,7 @@ def _page_html(group, set_no, watermark, subject=None, lesson=None, section=None
 def generate_pdf(questions: list[Question], output_path: Path, headline: str = "ENGLISH STUDY CENTRE",
                  subject: str | None = None, section: str | None = None,
                  set_no: str | None = None, watermark: str = "ENGLISH STUDY CENTRE",
-                 lesson: str | None = None, class_name: str | None = None,
+                 lesson: str | None = None, chapter: str | None = None, class_name: str | None = None,
                  pdf_mode: int = DEFAULT_PDF_MODE):
     """Write a PDF using only the locked 50-questions-per-page layout.
 
@@ -121,7 +123,7 @@ def generate_pdf(questions: list[Question], output_path: Path, headline: str = "
 
     groups = [questions[i:i + page_question_limit]
               for i in range(0, len(questions), page_question_limit)]
-    pages = ''.join(_page_html(group, set_no, watermark, subject, lesson, section, class_name, pdf_mode) for group in groups)
+    pages = ''.join(_page_html(group, set_no, watermark, subject, lesson, chapter, section, class_name, pdf_mode) for group in groups)
     html = f'''<!doctype html><html><head><meta charset="utf-8"><style>
 @font-face {{ font-family: NotoDev; src: url("{REGULAR.as_uri()}") format("truetype"); font-weight:400; }}
 @font-face {{ font-family: NotoDev; src: url("{BOLD.as_uri()}") format("truetype"); font-weight:700; }}
@@ -131,12 +133,15 @@ html, body {{ margin:0; padding:0; font-family:NotoDev,"DejaVu Sans",sans-serif;
 .paper-page {{ width:210mm; height:297mm; padding:7mm 9mm 5mm; position:relative; display:block; page-break-after:always; break-after:page; overflow:hidden; }}
 .paper-page:last-child {{ page-break-after:auto; break-after:auto; }}
 .watermark {{ position:absolute; z-index:0; top:52%; left:50%; transform:translate(-50%,-50%) rotate(-35deg); white-space:nowrap; font-size:30pt; font-weight:700; letter-spacing:1px; color:rgba(0,0,0,.15); pointer-events:none; }}
-.header {{ position:relative; z-index:1; padding:1mm 0 0; min-height:27mm; }}
+.header {{ position:relative; z-index:1; padding:1mm 0 0; min-height:34mm; }}
 .header-row {{ display:flex; align-items:flex-start; justify-content:space-between; width:100%; padding:0 5mm; }}
 .meta-left,.meta-right {{ width:34mm; min-width:34mm; border:0; padding-top:1.2mm; background:transparent; font-size:8.4pt; line-height:1.32; font-weight:700; white-space:nowrap; }}
 .meta-left {{ text-align:left; }}
 .meta-right {{ text-align:right; padding-left:4mm; }}
 .center-head {{ flex:1 1 auto; text-align:center; padding:0 3mm; min-width:0; }}
+.chapter-box {{ width:65mm; height:13mm; margin:2mm 0 0 5mm; border:2px solid #ff7043; padding:1.1mm 2mm; text-align:left; font-weight:700; overflow:hidden; }}
+.chapter-label {{ font-size:8.5pt; line-height:1; }}
+.chapter-text {{ font-size:8.2pt; line-height:1.08; margin-top:1mm; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }}
 .title-line {{ display:flex; align-items:center; justify-content:center; gap:2.2mm; white-space:nowrap; }}
 .orange-mark {{ color:#f28c00; font-family:"DejaVu Sans",sans-serif; font-size:25pt; font-weight:900; line-height:1; }}
 .headline {{ font-family:"DejaVu Serif",serif; font-size:24pt; font-weight:900; line-height:1.02; letter-spacing:.1px; white-space:nowrap; }}
