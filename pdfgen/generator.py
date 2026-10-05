@@ -49,7 +49,7 @@ def _question_html(q):
     )
 
 
-def _page_html(group, set_no, watermark, subject=None, lesson=None, section=None, class_name=None, mode=100):
+def _page_html(group, set_no, watermark, subject=None, lesson=None, topic=None, class_name=None, mode=100):
     # mode=50 => 25 questions per page; mode=100 => 50 questions per page.
     # Both layouts keep two columns; the 25/page layout simply uses fewer,
     # larger questions per column.
@@ -68,7 +68,7 @@ def _page_html(group, set_no, watermark, subject=None, lesson=None, section=None
     )
     right_meta = ''.join(
         f'<div>{label}: {_e(value)}</div>'
-        for label, value in (("Section", section), ("Class", class_name))
+        for label, value in (("Topic", topic), ("Class", class_name))
         if value and str(value).strip()
     )
     set_meta = f'<div>Set No: {_e(set_label)}</div>' if set_label else ''
@@ -97,7 +97,7 @@ def _page_html(group, set_no, watermark, subject=None, lesson=None, section=None
     </section>'''
 
 def generate_pdf(questions: list[Question], output_path: Path, headline: str = "ENGLISH STUDY CENTRE",
-                 subject: str | None = None, section: str | None = None,
+                 subject: str | None = None, topic: str | None = None,
                  set_no: str | None = None, watermark: str = "ENGLISH STUDY CENTRE",
                  lesson: str | None = None, class_name: str | None = None,
                  pdf_mode: int = DEFAULT_PDF_MODE):
@@ -120,7 +120,7 @@ def generate_pdf(questions: list[Question], output_path: Path, headline: str = "
 
     groups = [questions[i:i + page_question_limit]
               for i in range(0, len(questions), page_question_limit)]
-    pages = ''.join(_page_html(group, set_no, watermark, subject, lesson, section, class_name, pdf_mode) for group in groups)
+    pages = ''.join(_page_html(group, set_no, watermark, subject, lesson, topic, class_name, pdf_mode) for group in groups)
     html = f'''<!doctype html><html><head><meta charset="utf-8"><style>
 @font-face {{ font-family: NotoDev; src: url("{REGULAR.as_uri()}") format("truetype"); font-weight:400; }}
 @font-face {{ font-family: NotoDev; src: url("{BOLD.as_uri()}") format("truetype"); font-weight:700; }}
