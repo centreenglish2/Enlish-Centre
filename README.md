@@ -6,7 +6,7 @@ Render-ready Telegram bot that converts a TXT question bank into a professional 
 
 - Upload `.txt` questions to Telegram.
 - Automatically counts/processes all questions.
-- Asks for **Subject**, **Topic**, and **Set No.** — all optional.
+- Asks for **Subject**, **Section**, and **Set No.** — all optional.
 - Send `/skip` for any field you do not want.
 - Default headline: **ENGLISH STUDY CENTRE**.
 - Default watermark: **ENGLISH STUDY CENTRE** on every page.
@@ -55,7 +55,7 @@ The bot automatically creates/uses the `quizzes` collection. No manual collectio
 Each Quiz ID document stores:
 
 - Telegram user ID
-- Subject / Topic / Set No.
+- Subject / Section / Set No.
 - Headline
 - Question count
 - Complete parsed questions and options

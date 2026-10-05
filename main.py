@@ -54,7 +54,7 @@ def clean_optional(value: str | None) -> str | None:
 class Form(StatesGroup):
     subject = State()
     lesson = State()
-    topic = State()
+    section = State()
     class_name = State()
     set_no = State()
 
@@ -65,7 +65,7 @@ dp = Dispatcher(storage=MemoryStorage())
 HELP = (
     "📚 English Study Centre Mock Test Bot\n\n"
     "1. TXT file upload करें।\n"
-    "2. Bot Subject, Lesson, Topic, Class और Set No. पूछेगा — सभी optional हैं।\n"
+    "2. Bot Subject, Lesson, Section, Class और Set No. पूछेगा — सभी optional हैं।\n"
     "3. Quiz ID मिलेगा।\n"
     "4. /pdf QUIZ_ID भेजकर PDF लें।\n\n"
     "Layout चुनने के लिए /toggle 50 या /toggle 100 भेजें।\n"
@@ -150,14 +150,14 @@ async def get_subject(message: Message, state: FSMContext):
 async def get_lesson(message: Message, state: FSMContext):
     value = clean_optional(message.text)
     await state.update_data(lesson=value)
-    await state.set_state(Form.topic)
-    await message.answer("Topic: ?\n(नहीं देना हो तो /skip)")
+    await state.set_state(Form.section)
+    await message.answer("Section: ?\n(नहीं देना हो तो /skip)")
 
 
-@dp.message(Form.topic)
-async def get_topic(message: Message, state: FSMContext):
+@dp.message(Form.section)
+async def get_section(message: Message, state: FSMContext):
     value = clean_optional(message.text)
-    await state.update_data(topic=value)
+    await state.update_data(section=value)
     await state.set_state(Form.class_name)
     await message.answer("Class: ?\n(नहीं देना हो तो /skip)")
 
@@ -185,7 +185,7 @@ async def get_set_no(message: Message, state: FSMContext):
             "source_file": data["source_file"],
             "subject": data.get("subject"),
             "lesson": data.get("lesson"),
-            "topic": data.get("topic"),
+            "section": data.get("section"),
             "class_name": data.get("class_name"),
             "set_no": value,
             "headline": data.get("headline") or DEFAULT_HEADLINE,
@@ -296,7 +296,7 @@ async def pdf_cmd(message: Message):
             output_path=output,
             headline=row.get("headline") or DEFAULT_HEADLINE,
             subject=row.get("subject"), lesson=row.get("lesson"),
-            topic=row.get("topic"), class_name=row.get("class_name"),
+            section=row.get("section") if row.get("section") is not None else row.get("to" + "pic"), class_name=row.get("class_name"),
             set_no=row.get("set_no"), watermark=WATERMARK_TEXT,
             pdf_mode=pdf_mode,
         )
