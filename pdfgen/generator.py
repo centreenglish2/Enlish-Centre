@@ -49,7 +49,7 @@ def _question_html(q):
     )
 
 
-def _page_html(group, set_no, watermark, subject=None, lesson=None, chapter=None, section=None, class_name=None, mode=100):
+def _page_html(group, set_no, watermark, subject=None, lesson=None, section=None, class_name=None, chapter=None, mode=100):
     # mode=50 => 25 questions per page; mode=100 => 50 questions per page.
     # Both layouts keep two columns; the 25/page layout simply uses fewer,
     # larger questions per column.
@@ -72,11 +72,13 @@ def _page_html(group, set_no, watermark, subject=None, lesson=None, chapter=None
         if value and str(value).strip()
     )
     set_meta = f'<div>Set No: {_e(set_label)}</div>' if set_label else ''
+    chapter_text = re.sub(r"^\s*chapter\s*[:\-–—]?\s*", "", str(chapter or "").strip(), flags=re.IGNORECASE).strip()
+    chapter_box = f'<div class="chapter-box">{_e(chapter_text)}</div>' if chapter_text else ""
     return f'''<section class="paper-page mode-{mode}">
       <div class="watermark" aria-hidden="true">{_e(watermark or 'ENGLISH STUDY CENTRE')}</div>
       <header class="header">
         <div class="header-row">
-          <div class="meta-left">{left_meta}</div>
+          <div class="meta-left">{left_meta}{chapter_box}</div>
           <div class="center-head">
             <div class="title-line">
               <span class="orange-mark">|</span>
@@ -89,7 +91,6 @@ def _page_html(group, set_no, watermark, subject=None, lesson=None, chapter=None
           </div>
           <div class="meta-right">{right_meta}{set_meta}</div>
         </div>
-        <div class="chapter-box">{_e(chapter)}</div>
       </header>
       <div class="rule"></div>
       <main class="columns">
@@ -102,7 +103,7 @@ def generate_pdf(questions: list[Question], output_path: Path, headline: str = "
                  subject: str | None = None, section: str | None = None,
                  set_no: str | None = None, watermark: str = "ENGLISH STUDY CENTRE",
                  lesson: str | None = None, class_name: str | None = None,
-                 pdf_mode: int = DEFAULT_PDF_MODE, chapter: str | None = None):
+                 chapter: str | None = None, pdf_mode: int = DEFAULT_PDF_MODE):
     """Write a PDF using only the locked 50-questions-per-page layout.
 
     Legacy arguments remain accepted so existing bot code keeps working. The
@@ -122,7 +123,7 @@ def generate_pdf(questions: list[Question], output_path: Path, headline: str = "
 
     groups = [questions[i:i + page_question_limit]
               for i in range(0, len(questions), page_question_limit)]
-    pages = ''.join(_page_html(group, set_no, watermark, subject, lesson, chapter, section, class_name, pdf_mode) for group in groups)
+    pages = ''.join(_page_html(group, set_no, watermark, subject, lesson, section, class_name, chapter, pdf_mode) for group in groups)
     html = f'''<!doctype html><html><head><meta charset="utf-8"><style>
 @font-face {{ font-family: NotoDev; src: url("{REGULAR.as_uri()}") format("truetype"); font-weight:400; }}
 @font-face {{ font-family: NotoDev; src: url("{BOLD.as_uri()}") format("truetype"); font-weight:700; }}
@@ -132,10 +133,11 @@ html, body {{ margin:0; padding:0; font-family:NotoDev,"DejaVu Sans",sans-serif;
 .paper-page {{ width:210mm; height:297mm; padding:7mm 9mm 5mm; position:relative; display:block; page-break-after:always; break-after:page; overflow:hidden; }}
 .paper-page:last-child {{ page-break-after:auto; break-after:auto; }}
 .watermark {{ position:absolute; z-index:0; top:52%; left:50%; transform:translate(-50%,-50%) rotate(-35deg); white-space:nowrap; font-size:30pt; font-weight:700; letter-spacing:1px; color:rgba(0,0,0,.15); pointer-events:none; }}
-.header {{ position:relative; z-index:1; padding:1mm 0 0; min-height:43mm; }}
+.header {{ position:relative; z-index:1; padding:1mm 0 0; min-height:34mm; }}
 .header-row {{ display:flex; align-items:flex-start; justify-content:space-between; width:100%; padding:0 5mm; }}
 .meta-left,.meta-right {{ width:34mm; min-width:34mm; border:0; padding-top:1.2mm; background:transparent; font-size:8.4pt; line-height:1.32; font-weight:700; white-space:nowrap; }}
-.meta-left {{ text-align:left; }}
+.meta-left {{ text-align:left; position:relative; }}
+.chapter-box {{ position:absolute; left:0; top:15.2mm; width:66mm; height:16.2mm; border:2.2mm solid #ff7043; padding:1.2mm 2.5mm; background:#fff; font-size:9.5pt; line-height:1.08; font-weight:700; text-align:center; display:flex; align-items:center; justify-content:center; overflow:hidden; overflow-wrap:anywhere; word-break:break-word; }}
 .meta-right {{ text-align:right; padding-left:4mm; }}
 .center-head {{ flex:1 1 auto; text-align:center; padding:0 3mm; min-width:0; }}
 .title-line {{ display:flex; align-items:center; justify-content:center; gap:2.2mm; white-space:nowrap; }}
@@ -143,21 +145,19 @@ html, body {{ margin:0; padding:0; font-family:NotoDev,"DejaVu Sans",sans-serif;
 .headline {{ font-family:"DejaVu Serif",serif; font-size:24pt; font-weight:900; line-height:1.02; letter-spacing:.1px; white-space:nowrap; }}
 .school-name {{ font-family:"DejaVu Serif",serif; font-size:15pt; font-weight:800; line-height:1.1; margin-top:.8mm; }}
 .phone {{ font-family:"DejaVu Sans",sans-serif; font-size:10.5pt; font-weight:700; line-height:1.08; margin-top:.5mm; }}
-.chapter-box {{ width:68mm; min-height:13mm; margin:2.2mm 0 0 3mm; border:2.2mm solid #ff6b3d; display:flex; align-items:center; justify-content:center; padding:1.2mm 2.5mm; font-size:11.5pt; line-height:1.15; font-weight:700; text-align:center; overflow:hidden; overflow-wrap:anywhere; }}
-.chapter-box:empty {{ visibility:hidden; }}
-.rule {{ position:relative; z-index:1; border-top:1px solid #333; margin:1.5mm 0 1.5mm; }}
+.rule {{ position:relative; z-index:1; border-top:1px solid #333; margin:2.2mm 0 1.5mm; }}
 /* Keep all content in normal page flow. Absolute-positioned columns could
    fragment at the page boundary and paint Q25/Q50 above the next page header.
    The rule is followed immediately by two fixed-width columns; compact spacing
    leaves enough room for 25 questions per column without clipping. */
-.columns {{ position:relative; z-index:1; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:7mm; height:226mm; min-height:0; overflow:visible; }}
+.columns {{ position:relative; z-index:1; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:7mm; height:235mm; min-height:0; overflow:visible; }}
 .column {{ min-width:0; min-height:0; height:100%; overflow:visible; display:grid; align-content:stretch; gap:0; }}
 .question {{ flex:none; break-inside:avoid; page-break-inside:avoid; margin:0; font-size:6.35pt; line-height:1.02; }}
 .question-text {{ margin:0 0 .12mm; font-weight:600; overflow-wrap:anywhere; }}
 .options {{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:2mm; margin-left:1mm; }}
 .question-text, .option {{ hyphens:none; }}
 .option {{ font-size:6.0pt; line-height:1.0; overflow-wrap:anywhere; margin:0; }}
-.mode-50 .columns {{ height:226mm; column-gap:9mm; }}
+.mode-50 .columns {{ height:235mm; column-gap:9mm; }}
 .mode-50 .column {{ gap:0; }}
 .mode-50 .question {{ font-size:9.0pt; line-height:1.14; padding:0 0 1.2mm; align-self:start; }}
 .mode-50 .question-text {{ margin-bottom:.5mm; }}
