@@ -137,7 +137,7 @@ html, body {{ margin:0; padding:0; font-family:NotoDev,"DejaVu Sans",sans-serif;
 .header-row {{ display:flex; align-items:flex-start; justify-content:space-between; width:100%; padding:0 5mm; }}
 .meta-left,.meta-right {{ width:34mm; min-width:34mm; border:0; padding-top:1.2mm; background:transparent; font-size:8.4pt; line-height:1.32; font-weight:700; white-space:nowrap; }}
 .meta-left {{ text-align:left; position:relative; }}
-.chapter-box {{ position:absolute; left:0; top:15.2mm; width:66mm; height:16.2mm; border:2.2mm solid #ff7043; padding:1.2mm 2.5mm; background:#fff; font-size:9.5pt; line-height:1.08; font-weight:700; text-align:center; display:flex; align-items:center; justify-content:center; overflow:hidden; overflow-wrap:anywhere; word-break:break-word; }}
+.chapter-box {{ position:absolute; left:0; top:17mm; width:66mm; min-height:14mm; border:2.2mm solid #ff7043; padding:2mm 3mm; background:#fff; color:#31c5d5; font-size:17pt; line-height:1.0; font-weight:700; text-align:center; overflow:hidden; overflow-wrap:anywhere; }}
 .meta-right {{ text-align:right; padding-left:4mm; }}
 .center-head {{ flex:1 1 auto; text-align:center; padding:0 3mm; min-width:0; }}
 .title-line {{ display:flex; align-items:center; justify-content:center; gap:2.2mm; white-space:nowrap; }}
