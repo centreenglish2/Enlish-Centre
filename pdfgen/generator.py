@@ -37,7 +37,7 @@ def _split_inline_options(q):
 def _question_html(q):
     stem, options = _split_inline_options(q)
     option_html = ''.join(
-        f'<div class="option"><b>({("क", "ख", "ग", "घ")[i]})</b> {_e(opt)}</div>'
+       f'<div class="option"><b>({("A", "B", "C", "D")[i]})</b> {_e(opt)}</div>'
         for i, opt in enumerate((options + ["", "", "", ""])[:4])
         if str(opt).strip()
     )
