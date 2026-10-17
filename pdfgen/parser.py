@@ -1,4 +1,3 @@
-```python
 import re
 from dataclasses import dataclass, field
 
@@ -207,4 +206,3 @@ def parse_questions(raw: str) -> list[Question]:
         question.number = i
 
     return found
-```
