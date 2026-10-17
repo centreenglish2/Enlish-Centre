@@ -2,6 +2,23 @@ import re
 from dataclasses import dataclass, field
 
 
+# Remove AI/citation span markers such as [span_95](start_span) and
+# [span_95](end_span), including escaped forms like [span_95]\\(start_span).
+SPAN_MARKER_RE = re.compile(
+    r"[ \t]*\[\s*span_\d+\s*\][ \t]*\\?\([ \t]*(?:start_span|end_span)[ \t]*\)[ \t]*",
+    re.IGNORECASE,
+)
+
+
+def clean_ai_span_markers(text: str) -> str:
+    """Remove AI-generated span markers from source text before parsing/rendering."""
+    previous = None
+    while previous != text:
+        previous = text
+        text = SPAN_MARKER_RE.sub(" ", text)
+    return text
+
+
 @dataclass
 class Question:
     number: int
@@ -114,8 +131,9 @@ def split_inline_options(text: str):
 
 
 def parse_questions(raw: str) -> list[Question]:
-    """Parse numbered questions and their English-labeled options."""
+    """Parse numbered questions/options after removing AI span markers."""
 
+    raw = clean_ai_span_markers(raw)
     lines = [
         line.replace("\ufeff", "").rstrip()
         for line in raw.replace("\r\n", "\n")
