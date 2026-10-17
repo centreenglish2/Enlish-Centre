@@ -15,6 +15,7 @@ from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
 from pdfgen.generator import generate_pdf
+from pdfgen.omr import generate_omr_pdf
 from pdfgen.parser import Question, parse_questions
 
 BASE = Path(__file__).resolve().parent
@@ -69,6 +70,8 @@ HELP = (
     "3. Quiz ID मिलेगा।\n"
     "4. /pdf QUIZ_ID भेजकर PDF लें।\n\n"
     "Layout चुनने के लिए /toggle 50 या /toggle 100 भेजें।\n"
+    "OMR enable/disable: /toggle omr on या /toggle omr off\n"
+    "OMR PDF: /omr 1 to 100 (किसी भी question range के लिए)\n"
     "/toggle 50 = 25 questions/page (बड़े और साफ़), /toggle 100 = 50 questions/page।\n"
     "Hindi Unicode और options A) B) C) D) सुरक्षित रहेंगे।\n"
     "किसी optional field को छोड़ने के लिए /skip भेजें।"
@@ -218,12 +221,27 @@ async def get_set_no(message: Message, state: FSMContext):
 
 @dp.message(Command("toggle"))
 async def toggle_cmd(message: Message):
-    parts = (message.text or "").split(maxsplit=1)
+    parts = (message.text or "").split()
+    if len(parts) == 3 and parts[1].lower() == "omr" and parts[2].lower() in {"on", "off"}:
+        enabled = parts[2].lower() == "on"
+        try:
+            client, database = get_mongo()
+            database.user_settings.update_one(
+                {"_id": message.from_user.id},
+                {"$set": {"omr_enabled": enabled}},
+                upsert=True,
+            )
+            client.close()
+        except PyMongoError as exc:
+            await message.answer(f"❌ MongoDB error: {type(exc).__name__}: {exc}")
+            return
+        await message.answer("✅ OMR function ENABLED है। अब /omr 1 to 100 भेजें।" if enabled else "⛔ OMR function DISABLED है।")
+        return
+
     if len(parts) != 2 or parts[1].strip() not in {"50", "100"}:
         await message.answer(
-            "Usage: /toggle 50 या /toggle 100\n\n"
-            "50 = 25 questions per page (बड़ा, साफ़ layout)\n"
-            "100 = 50 questions per page (25 + 25 columns)"
+            "Usage:\n/toggle 50 या /toggle 100 — PDF layout\n"
+            "/toggle omr on — OMR enable\n/toggle omr off — OMR disable"
         )
         return
     mode = int(parts[1].strip())
@@ -242,6 +260,42 @@ async def toggle_cmd(message: Message):
         await message.answer("✅ PDF layout set: 50\n25 questions per page — बड़ा और साफ़ format.")
     else:
         await message.answer("✅ PDF layout set: 100\n50 questions per page — 25 left + 25 right.")
+
+
+@dp.message(Command("omr"))
+async def omr_cmd(message: Message):
+    parts = (message.text or "").strip().split()
+    if len(parts) != 4 or parts[1].lower() != "to" and not parts[2].lower() == "to":
+        # Accept the documented form: /omr 1 to 100
+        if len(parts) != 4 or parts[2].lower() != "to":
+            await message.answer("Usage: /omr 1 to 100\nExample: /omr 101 to 200")
+            return
+    try:
+        start, end = int(parts[1]), int(parts[3])
+    except (ValueError, IndexError):
+        await message.answer("❌ Range सही नहीं है। उदाहरण: /omr 1 to 100")
+        return
+    if start < 1 or end < start or end - start > 999:
+        await message.answer("❌ Range 1 से शुरू हो और अधिकतम 1000 questions तक होनी चाहिए।")
+        return
+    try:
+        client, database = get_mongo()
+        settings = database.user_settings.find_one({"_id": message.from_user.id}) or {}
+        client.close()
+    except PyMongoError as exc:
+        await message.answer(f"❌ MongoDB error: {type(exc).__name__}: {exc}")
+        return
+    if not settings.get("omr_enabled", False):
+        await message.answer("⛔ OMR function अभी DISABLED है। पहले /toggle omr on भेजें।")
+        return
+    status = await message.answer(f"⏳ OMR Answer Sheet {start}–{end} बना रहा हूँ...")
+    try:
+        output = GENERATED / f"OMR_{start}_to_{end}_{message.from_user.id}.pdf"
+        generate_omr_pdf(start, end, output)
+        await message.answer_document(FSInputFile(output), caption=f"📄 OMR Answer Sheet\nQuestions: {start}–{end}")
+        await status.delete()
+    except Exception as exc:
+        await status.edit_text(f"❌ OMR PDF error: {type(exc).__name__}: {exc}")
 
 
 @dp.message(Command("pdf"))
