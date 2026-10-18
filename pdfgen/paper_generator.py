@@ -19,18 +19,6 @@ MARKS_LINE_RE = re.compile(r"^\s*\d+\s*[×xX*]\s*\d+\s*=\s*\d+.*$", re.I)
 BOLD_MARKER_RE = re.compile(r"\*\*(.+?)\*\*")
 
 
-def _render_marked_text(line: str) -> str:
-    """Escape text and convert **marked spans** to HTML bold, removing markers."""
-    pieces = []
-    cursor = 0
-    for match in BOLD_MARKER_RE.finditer(line):
-        pieces.append(escape(line[cursor:match.start()], quote=True))
-        pieces.append(f'<strong>{escape(match.group(1), quote=True)}</strong>')
-        cursor = match.end()
-    pieces.append(escape(line[cursor:], quote=True))
-    return ''.join(pieces)
-
-
 def _render_marked_text(text: str) -> str:
     """Escape TXT content and convert paired **text** markers into real bold HTML."""
     parts = re.split(r"(\*\*.*?\*\*)", text)
@@ -62,11 +50,9 @@ def generate_paper_pdf(raw_text: str, output_path: Path, headline: str = ""):
         if not stripped:
             rendered.append('<div class="blank"></div>')
             continue
-        # If a line contains explicit **bold markers**, honor only those markers
-        # and do not apply the automatic whole-line bold style to that line.
-        has_explicit_bold = bool(re.search(r"\*\*.+?\*\*", line))
         value = _render_marked_text(line)
-        if has_explicit_bold:
+        # If any ** markers exist in the TXT, only explicitly marked spans are bold.
+        if manual_bold_mode:
             rendered.append(f'<div class="line explicit-bold">{value}</div>')
         elif index == first_index:
             rendered.append(f'<div class="title">{value}</div>')
