@@ -36,6 +36,10 @@ GENERATED.mkdir(parents=True, exist_ok=True)
 MONGODB_URI = os.getenv("MONGODB_URI", "").strip()
 MONGODB_DB = os.getenv("MONGODB_DB", "english_study_centre").strip() or "english_study_centre"
 
+BACKGROUND_TASKS: set = set()
+PDF_LOCK = asyncio.Semaphore(1)  # 512 MB RAM: render one PDF at a time
+PDF_CACHE_VERSION = "v1"  # bump this if the PDF layout code changes
+
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 DEFAULT_HEADLINE = os.getenv("DEFAULT_HEADLINE", "ENGLISH STUDY CENTRE").strip() or "ENGLISH STUDY CENTRE"
 WATERMARK_TEXT = os.getenv("WATERMARK_TEXT", "ENGLISH STUDY CENTRE").strip() or "ENGLISH STUDY CENTRE"
@@ -44,12 +48,38 @@ if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN environment variable is required")
 
 
+class _SharedClient:
+    """Reuse one MongoClient for the whole process.
+
+    Opening a new TLS connection to Atlas on every command is slow. Existing
+    code calls client.close() after each use, so close() is a no-op here.
+    """
+
+    def __init__(self, client):
+        self._client = client
+
+    def __getattr__(self, name):
+        return getattr(self._client, name)
+
+    def __getitem__(self, name):
+        return self._client[name]
+
+    def close(self):
+        pass
+
+
+_MONGO = None
+
+
 def get_mongo():
+    global _MONGO
     if not MONGODB_URI:
         raise RuntimeError("MONGODB_URI environment variable is required")
-    client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=8000)
-    client.admin.command("ping")
-    return client, client[MONGODB_DB]
+    if _MONGO is None:
+        client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=8000, maxPoolSize=5)
+        client.admin.command("ping")
+        _MONGO = _SharedClient(client)
+    return _MONGO, _MONGO[MONGODB_DB]
 
 
 def clean_optional(value: str | None) -> str | None:
@@ -253,6 +283,11 @@ async def get_set_no(message: Message, state: FSMContext):
         f"PDF लेने के लिए भेजें:\n`/pdf {quiz_id}`",
         parse_mode="Markdown",
     )
+
+    # Start rendering the PDF now, in the background, so /pdf is instant later.
+    task = asyncio.create_task(prebuild_pdf(quiz_id, message.from_user.id))
+    BACKGROUND_TASKS.add(task)
+    task.add_done_callback(BACKGROUND_TASKS.discard)
 
 
 # ---------------------------------------------------------------------------
@@ -551,6 +586,58 @@ async def paper_cmd(message: Message):
         await status.edit_text(f"❌ Question Paper error: {type(exc).__name__}: {exc}")
 
 
+def questions_from_row(row) -> list[Question]:
+    # MongoDB stores each question as a dict; the PDF generator expects
+    # Question objects. Support both formats (old and new quizzes).
+    return [
+        q if isinstance(q, Question) else Question(
+            number=int(q.get("number", index)),
+            text=str(q.get("text", "")),
+            options=list(q.get("options") or []),
+        )
+        for index, q in enumerate(row.get("questions", []), start=1)
+    ]
+
+
+async def render_quiz_pdf(row, pdf_mode: int):
+    """Render (or reuse an already rendered) PDF. One render at a time."""
+    quiz_id = row["_id"]
+    questions = questions_from_row(row)
+    output = GENERATED / f"English_Study_Centre_{quiz_id}_M{pdf_mode}.pdf"
+    async with PDF_LOCK:
+        if not output.exists():
+            try:
+                # WeasyPrint is CPU heavy; use a worker thread so the bot and
+                # Render's /health check keep responding meanwhile.
+                await asyncio.to_thread(
+                    generate_pdf,
+                    questions=questions,
+                    output_path=output,
+                    headline=row.get("headline") or DEFAULT_HEADLINE,
+                    subject=row.get("subject"), lesson=row.get("lesson"),
+                    section=row.get("section") if row.get("section") is not None else row.get("to" + "pic"), class_name=row.get("class_name"),
+                    set_no=row.get("set_no"), watermark=WATERMARK_TEXT,
+                    pdf_mode=pdf_mode,
+                )
+            except BaseException:
+                output.unlink(missing_ok=True)  # never keep a half-written PDF
+                raise
+    return output, len(questions)
+
+
+async def prebuild_pdf(quiz_id: str, user_id: int):
+    """Best-effort: render the PDF in the background right after quiz creation."""
+    try:
+        client, database = get_mongo()
+        row = database.quizzes.find_one({"_id": quiz_id})
+        settings = database.user_settings.find_one({"_id": user_id}) or {}
+        client.close()
+        if row:
+            await render_quiz_pdf(row, current_pdf_mode(settings))
+    except Exception:
+        pass  # /pdf will simply render it on demand
+
+
 @dp.message(Command("pdf"))
 async def pdf_cmd(message: Message):
     parts = (message.text or "").split(maxsplit=1)
@@ -583,34 +670,37 @@ async def pdf_cmd(message: Message):
         await message.answer(f"❌ MongoDB error: {type(exc).__name__}: {exc}")
         return
 
+    cache_key = f"{PDF_CACHE_VERSION}_{pdf_mode}"
+    cached_id = (row.get("pdf_cache") or {}).get(cache_key)
+    if cached_id:
+        # Same quiz + same layout was already generated: resend instantly.
+        try:
+            await message.answer_document(
+                cached_id, caption=f"📄 Quiz ID: {quiz_id}\n{row.get('question_count', '')} questions"
+            )
+            return
+        except TelegramBadRequest:
+            pass  # file_id expired/invalid -> regenerate below
+
     per_page = 25 if pdf_mode == 50 else 50
     status = await message.answer(f"⏳ PDF बना रहा हूँ... {per_page} questions/page layout तैयार हो रहा है।")
+    output = None
     try:
-        # MongoDB returns each saved question as a dict; the PDF generator
-        # expects Question dataclass instances. Support both formats so older
-        # and newly saved quizzes can generate PDFs.
-        questions = [
-            q if isinstance(q, Question) else Question(
-                number=int(q.get("number", index)),
-                text=str(q.get("text", "")),
-                options=list(q.get("options") or []),
-            )
-            for index, q in enumerate(row.get("questions", []), start=1)
-        ]
-        output = GENERATED / f"English_Study_Centre_{quiz_id}_M{pdf_mode}.pdf"
-        generate_pdf(
-            questions=questions,
-            output_path=output,
-            headline=row.get("headline") or DEFAULT_HEADLINE,
-            subject=row.get("subject"), lesson=row.get("lesson"),
-            section=row.get("section") if row.get("section") is not None else row.get("to" + "pic"), class_name=row.get("class_name"),
-            set_no=row.get("set_no"), watermark=WATERMARK_TEXT,
-            pdf_mode=pdf_mode,
-        )
+        output, question_count = await render_quiz_pdf(row, pdf_mode)
         await status.edit_text("✅ PDF तैयार है।")
-        await message.answer_document(FSInputFile(output), caption=f"📄 Quiz ID: {quiz_id}\n{len(questions)} questions")
+        sent = await message.answer_document(FSInputFile(output), caption=f"📄 Quiz ID: {quiz_id}\n{question_count} questions")
+        try:
+            if sent.document:
+                client, database = get_mongo()
+                database.quizzes.update_one({"_id": quiz_id}, {"$set": {f"pdf_cache.{cache_key}": sent.document.file_id}})
+                client.close()
+        except PyMongoError:
+            pass  # caching is best-effort
     except Exception as exc:
         await status.edit_text(f"❌ PDF generation error: {type(exc).__name__}: {exc}")
+    finally:
+        if output is not None:
+            output.unlink(missing_ok=True)  # keep the small free-tier disk clean
 
 
 async def health(request):
