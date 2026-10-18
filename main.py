@@ -239,25 +239,29 @@ async def get_set_no(message: Message, state: FSMContext):
 @dp.message(Command("toggle"))
 async def toggle_cmd(message: Message):
     parts = (message.text or "").split()
-    if len(parts) == 3 and parts[1].lower() == "paper" and parts[2].lower() in {"on", "off"}:
+    if len(parts) == 3 and parts[1].lower() in {"paper", "omr"} and parts[2].lower() in {"on", "off"}:
+        feature = parts[1].lower()
         enabled = parts[2].lower() == "on"
+        setting_key = "paper_enabled" if feature == "paper" else "omr_enabled"
         try:
             client, database = get_mongo()
             database.user_settings.update_one(
                 {"_id": message.from_user.id},
-                {"$set": {"paper_enabled": enabled}},
+                {"$set": {setting_key: enabled}},
                 upsert=True,
             )
             client.close()
         except PyMongoError as exc:
             await message.answer(f"❌ MongoDB error: {type(exc).__name__}: {exc}")
             return
-        await message.answer("📜 Question Paper: " + ("ENABLED" if enabled else "DISABLED ❌❌"))
+        feature_name = "Question Paper" if feature == "paper" else "OMR"
+        await message.answer(f"{'📜' if feature == 'paper' else '📝'} {feature_name}: " + ("ENABLED ✅" if enabled else "DISABLED ❌"))
         return
 
     if len(parts) != 2 or parts[1].strip() not in {"50", "100"}:
         await message.answer(
-            "Usage:\n/toggle 50\n/toggle 100\n/toggle paper on\n/toggle paper off\n\n"
+            "Usage:\n/toggle 50\n/toggle 100\n/toggle paper on\n/toggle paper off\n"
+            "/toggle omr on\n/toggle omr off\n\n"
             "50 = 25 questions per page; 100 = 50 questions per page."
         )
         return
@@ -277,6 +281,52 @@ async def toggle_cmd(message: Message):
         await message.answer("✅ PDF layout set: 50\n25 questions per page — बड़ा और साफ़ format.")
     else:
         await message.answer("✅ PDF layout set: 100\n50 questions per page — 25 left + 25 right.")
+
+
+@dp.message(Command("omr"))
+async def omr_cmd(message: Message):
+    parts = (message.text or "").split()
+    if len(parts) == 4 and parts[2].lower() == "to":
+        start_text, end_text = parts[1], parts[3]
+    elif len(parts) == 2 and "-" in parts[1]:
+        start_text, end_text = parts[1].split("-", 1)
+    elif len(parts) == 2 and parts[1].isdigit():
+        start_text, end_text = "1", parts[1]
+    else:
+        await message.answer("Usage: /omr 1 to 100\nया /omr 1-100")
+        return
+
+    try:
+        start_num, end_num = int(start_text), int(end_text)
+        if start_num < 1 or end_num < start_num or end_num > 1000:
+            raise ValueError
+    except ValueError:
+        await message.answer("❌ सही range दें। उदाहरण: /omr 1 to 100 (अधिकतम 1000 questions)")
+        return
+
+    try:
+        client, database = get_mongo()
+        settings = database.user_settings.find_one({"_id": message.from_user.id}) or {}
+        client.close()
+    except PyMongoError as exc:
+        await message.answer(f"❌ MongoDB error: {type(exc).__name__}: {exc}")
+        return
+
+    if not settings.get("omr_enabled", False):
+        await message.answer("⛔ OMR function disabled है। पहले /toggle omr on करें।")
+        return
+
+    output = GENERATED / f"OMR_{start_num}_to_{end_num}_{message.from_user.id}_{uuid.uuid4().hex[:8]}.pdf"
+    status = await message.answer("⏳ OMR PDF बना रहा हूँ...")
+    try:
+        generate_omr_pdf(start_num, end_num, output)
+        await message.answer_document(
+            FSInputFile(output),
+            caption=f"📝 OMR Answer Sheet\nQuestions: {start_num}–{end_num}",
+        )
+        await status.edit_text("✅ OMR PDF तैयार है।")
+    except Exception as exc:
+        await status.edit_text(f"❌ OMR PDF error: {type(exc).__name__}: {exc}")
 
 
 @dp.message(Command("paper"))
