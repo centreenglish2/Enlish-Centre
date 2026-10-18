@@ -252,7 +252,7 @@ async def toggle_cmd(message: Message):
         except PyMongoError as exc:
             await message.answer(f"❌ MongoDB error: {type(exc).__name__}: {exc}")
             return
-        await message.answer("✅ Question Paper: " + ("ENABLED" if enabled else "DISABLED"))
+        await message.answer("✅ Question Paper: " + ("ENABLED" if enabled else "DISABLED ❌❌"))
         return
 
     if len(parts) != 2 or parts[1].strip() not in {"50", "100"}:
