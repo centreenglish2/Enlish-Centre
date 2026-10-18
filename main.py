@@ -6,7 +6,15 @@ from pathlib import Path
 from aiohttp import web
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
-from aiogram.types import Message, FSInputFile
+from aiogram.exceptions import TelegramBadRequest
+from aiogram.types import (
+    BotCommand,
+    CallbackQuery,
+    FSInputFile,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+)
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -65,20 +73,28 @@ bot = Bot(BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
 HELP = (
-    "📚 English Study Centre Mock Test Bot\n\n"
+    "📚 English Study Centre Mock Test Bot — Guide\n\n"
+    "🧾 Quiz / PDF बनाना\n"
     "1. TXT file upload करें।\n"
     "2. Bot Subject, Lesson, Section, Class और Set No. पूछेगा — सभी optional हैं।\n"
     "3. Quiz ID मिलेगा।\n"
-    "4. /pdf QUIZ_ID भेजकर PDF लें।\n\n"
-    "Layout चुनने के लिए /toggle 50 या /toggle 100 भेजें।\n"
-    "Question Paper: /toggle paper on या /toggle paper off; TXT पर reply करके /paper भेजें।\n"
-    "OMR enable/disable: /toggle omr on या /toggle omr off\n"
-    "OMR PDF: /omr 1 to 100 (किसी भी question range के लिए)\n"
-    "/toggle 50 = 25 questions/page (बड़े और साफ़), /toggle 100 = 50 questions/page।\n"
-    "Hindi Unicode और options A) B) C) D) सुरक्षित रहेंगे।\n"
-    "किसी optional field को छोड़ने के लिए /skip भेजें।"
+    "4. /pdf QUIZ_ID भेजकर PDF लें।\n"
+    "किसी optional field को छोड़ने के लिए /skip भेजें।\n\n"
+    "⚙️ Settings (inline buttons)\n"
+    "/settings या /toggle भेजें — बटन से ये बदलें:\n"
+    "• 📄 PDF Layout: 50 = 25 questions/page (बड़े और साफ़), 100 = 50 questions/page\n"
+    "• 📜 Question Paper: ON करके TXT पर reply में /paper भेजें\n"
+    "• 📝 OMR: ON करके /omr 1 to 100 भेजें (किसी भी range के लिए)\n\n"
+    "📋 Commands\n"
+    "/start — शुरू करें\n"
+    "/help — यह guide\n"
+    "/settings — Settings panel\n"
+    "/pdf QUIZ_ID — Quiz PDF\n"
+    "/paper — Question Paper (TXT पर reply)\n"
+    "/omr 1 to 100 — OMR sheet\n"
+    "/cancel — चल रहा process रोकें\n\n"
+    "Hindi Unicode और options A) B) C) D) सुरक्षित रहेंगे।"
 )
-
 
 @dp.message(Command("start"))
 async def start(message: Message, state: FSMContext):
@@ -92,7 +108,10 @@ async def start(message: Message, state: FSMContext):
 
 @dp.message(Command("help"))
 async def help_cmd(message: Message):
-    await message.answer(HELP)
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⚙️ Settings", callback_data="set:menu")],
+    ])
+    await message.answer(HELP, reply_markup=kb)
 
 
 @dp.message(Command("cancel"))
@@ -236,44 +255,202 @@ async def get_set_no(message: Message, state: FSMContext):
     )
 
 
+# ---------------------------------------------------------------------------
+# Settings panel (inline buttons)
+# ---------------------------------------------------------------------------
+FEATURES = {
+    "paper": {"key": "paper_enabled", "icon": "📜", "name": "Question Paper"},
+    "omr": {"key": "omr_enabled", "icon": "📝", "name": "OMR"},
+}
+
+
+def load_settings(user_id: int) -> dict:
+    client, database = get_mongo()
+    try:
+        return database.user_settings.find_one({"_id": user_id}) or {}
+    finally:
+        client.close()
+
+
+def save_setting(user_id: int, key: str, value) -> None:
+    client, database = get_mongo()
+    try:
+        database.user_settings.update_one(
+            {"_id": user_id},
+            {"$set": {key: value}},
+            upsert=True,
+        )
+    finally:
+        client.close()
+
+
+def current_pdf_mode(settings: dict) -> int:
+    try:
+        mode = int(settings.get("pdf_mode", 100))
+    except (TypeError, ValueError):
+        mode = 100
+    return mode if mode in (50, 100) else 100
+
+
+def on_off(flag: bool) -> str:
+    return "ON ✅" if flag else "OFF ❌"
+
+
+def main_menu(settings: dict) -> tuple[str, InlineKeyboardMarkup]:
+    mode = current_pdf_mode(settings)
+    per_page = 25 if mode == 50 else 50
+    paper = bool(settings.get("paper_enabled", False))
+    omr = bool(settings.get("omr_enabled", False))
+    text = (
+        "⚙️ Settings\n\n"
+        f"📄 PDF Layout: {mode} ({per_page} questions/page)\n"
+        f"📜 Question Paper: {on_off(paper)}\n"
+        f"📝 OMR: {on_off(omr)}\n\n"
+        "बदलने के लिए नीचे का बटन दबाएँ।"
+    )
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"📄 PDF Layout · {mode}", callback_data="set:layout")],
+        [InlineKeyboardButton(text=f"📜 Question Paper · {on_off(paper)}", callback_data="set:paper")],
+        [InlineKeyboardButton(text=f"📝 OMR · {on_off(omr)}", callback_data="set:omr")],
+        [InlineKeyboardButton(text="📖 Help / Guide", callback_data="set:help")],
+        [InlineKeyboardButton(text="✖️ Close", callback_data="set:close")],
+    ])
+    return text, kb
+
+
+def layout_menu(settings: dict) -> tuple[str, InlineKeyboardMarkup]:
+    mode = current_pdf_mode(settings)
+    text = (
+        "📄 PDF Layout\n\n"
+        "• 50 = 25 questions/page (बड़े और साफ़)\n"
+        "• 100 = 50 questions/page (25 left + 25 right)\n\n"
+        f"अभी चुना हुआ: {mode}"
+    )
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text=("✅ " if mode == 50 else "") + "50 · 25 Q/page", callback_data="set:layout:50"),
+            InlineKeyboardButton(text=("✅ " if mode == 100 else "") + "100 · 50 Q/page", callback_data="set:layout:100"),
+        ],
+        [InlineKeyboardButton(text="🔙 Back", callback_data="set:menu")],
+    ])
+    return text, kb
+
+
+def feature_menu(feature: str, settings: dict) -> tuple[str, InlineKeyboardMarkup]:
+    info = FEATURES[feature]
+    enabled = bool(settings.get(info["key"], False))
+    if feature == "paper":
+        how = "ON करने के बाद TXT file भेजें और उस file पर reply करके /paper भेजें।"
+    else:
+        how = "ON करने के बाद /omr 1 to 100 (या /omr 1-100) भेजें।"
+    text = f"{info['icon']} {info['name']}\n\nStatus: {on_off(enabled)}\n\n{how}"
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text=("✅ " if enabled else "") + "ON", callback_data=f"set:{feature}:on"),
+            InlineKeyboardButton(text=("✅ " if not enabled else "") + "OFF", callback_data=f"set:{feature}:off"),
+        ],
+        [InlineKeyboardButton(text="🔙 Back", callback_data="set:menu")],
+    ])
+    return text, kb
+
+
+def help_menu() -> tuple[str, InlineKeyboardMarkup]:
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔙 Back", callback_data="set:menu")],
+    ])
+    return HELP, kb
+
+
+@dp.message(Command("settings"))
+async def settings_cmd(message: Message):
+    try:
+        settings = load_settings(message.from_user.id)
+    except PyMongoError as exc:
+        await message.answer(f"❌ MongoDB error: {type(exc).__name__}: {exc}")
+        return
+    text, kb = main_menu(settings)
+    await message.answer(text, reply_markup=kb)
+
+
+@dp.callback_query(F.data.startswith("set:"))
+async def settings_callback(callback: CallbackQuery):
+    if not isinstance(callback.message, Message):
+        await callback.answer("Message पुराना हो गया है। /settings दोबारा भेजें।", show_alert=True)
+        return
+
+    parts = (callback.data or "").split(":")
+    screen = parts[1] if len(parts) > 1 else "menu"
+    value = parts[2] if len(parts) > 2 else None
+    user_id = callback.from_user.id
+    toast = None
+
+    try:
+        if screen == "close":
+            try:
+                await callback.message.delete()
+            except TelegramBadRequest:
+                pass
+            await callback.answer()
+            return
+
+        if screen == "layout" and value in {"50", "100"}:
+            save_setting(user_id, "pdf_mode", int(value))
+            toast = f"✅ PDF layout set: {value}"
+        elif screen in FEATURES and value in {"on", "off"}:
+            save_setting(user_id, FEATURES[screen]["key"], value == "on")
+            toast = f"{FEATURES[screen]['name']}: " + ("ENABLED ✅" if value == "on" else "DISABLED ❌")
+
+        settings = load_settings(user_id)
+    except PyMongoError as exc:
+        await callback.answer(f"❌ MongoDB error: {type(exc).__name__}", show_alert=True)
+        return
+
+    if screen == "layout":
+        text, kb = layout_menu(settings)
+    elif screen in FEATURES:
+        text, kb = feature_menu(screen, settings)
+    elif screen == "help":
+        text, kb = help_menu()
+    else:
+        text, kb = main_menu(settings)
+
+    try:
+        await callback.message.edit_text(text, reply_markup=kb)
+    except TelegramBadRequest as exc:
+        if "message is not modified" not in str(exc).lower():
+            raise
+    await callback.answer(toast)
+
+
 @dp.message(Command("toggle"))
 async def toggle_cmd(message: Message):
     parts = (message.text or "").split()
-    if len(parts) == 3 and parts[1].lower() in {"paper", "omr"} and parts[2].lower() in {"on", "off"}:
+
+    # /toggle  -> open the inline settings panel
+    if len(parts) == 1:
+        await settings_cmd(message)
+        return
+
+    # Old text commands still work: /toggle paper on, /toggle omr off
+    if len(parts) == 3 and parts[1].lower() in FEATURES and parts[2].lower() in {"on", "off"}:
         feature = parts[1].lower()
         enabled = parts[2].lower() == "on"
-        setting_key = "paper_enabled" if feature == "paper" else "omr_enabled"
+        info = FEATURES[feature]
         try:
-            client, database = get_mongo()
-            database.user_settings.update_one(
-                {"_id": message.from_user.id},
-                {"$set": {setting_key: enabled}},
-                upsert=True,
-            )
-            client.close()
+            save_setting(message.from_user.id, info["key"], enabled)
         except PyMongoError as exc:
             await message.answer(f"❌ MongoDB error: {type(exc).__name__}: {exc}")
             return
-        feature_name = "Question Paper" if feature == "paper" else "OMR"
-        await message.answer(f"{'📜' if feature == 'paper' else '📝'} {feature_name}: " + ("ENABLED ✅" if enabled else "DISABLED ❌"))
+        await message.answer(f"{info['icon']} {info['name']}: " + ("ENABLED ✅" if enabled else "DISABLED ❌"))
         return
 
+    # Old text commands still work: /toggle 50, /toggle 100
     if len(parts) != 2 or parts[1].strip() not in {"50", "100"}:
-        await message.answer(
-            "Usage:\n/toggle 50\n/toggle 100\n/toggle paper on\n/toggle paper off\n"
-            "/toggle omr on\n/toggle omr off\n\n"
-            "50 = 25 questions per page; 100 = 50 questions per page."
-        )
+        await message.answer("❌ सही option नहीं मिला। बटन वाला panel खोलने के लिए /settings भेजें।")
         return
     mode = int(parts[1].strip())
     try:
-        client, database = get_mongo()
-        database.user_settings.update_one(
-            {"_id": message.from_user.id},
-            {"$set": {"pdf_mode": mode}},
-            upsert=True,
-        )
-        client.close()
+        save_setting(message.from_user.id, "pdf_mode", mode)
     except PyMongoError as exc:
         await message.answer(f"❌ MongoDB error: {type(exc).__name__}: {exc}")
         return
@@ -313,7 +490,7 @@ async def omr_cmd(message: Message):
         return
 
     if not settings.get("omr_enabled", False):
-        await message.answer("⛔ OMR function disabled है। पहले /toggle omr on करें।")
+        await message.answer("⛔ OMR function disabled है। पहले /settings में OMR ON करें।")
         return
 
     output = GENERATED / f"OMR_{start_num}_to_{end_num}_{message.from_user.id}_{uuid.uuid4().hex[:8]}.pdf"
@@ -345,7 +522,7 @@ async def paper_cmd(message: Message):
         await message.answer(f"❌ MongoDB error: {type(exc).__name__}: {exc}")
         return
     if not settings.get("paper_enabled", False):
-        await message.answer("⛔ Question Paper function disabled है। पहले /toggle paper on करें।")
+        await message.answer("⛔ Question Paper function disabled है। पहले /settings में Question Paper ON करें।")
         return
 
     safe = re.sub(r"[^A-Za-z0-9._-]", "_", doc.file_name or "paper.txt")
@@ -459,6 +636,16 @@ async def main():
     except PyMongoError as exc:
         raise RuntimeError(f"MongoDB connection failed: {exc}") from exc
     runner = await web_server()
+    try:
+        await bot.set_my_commands([
+            BotCommand(command="start", description="Bot शुरू करें"),
+            BotCommand(command="help", description="Guide / मदद"),
+            BotCommand(command="settings", description="Settings (layout, paper, OMR)"),
+            BotCommand(command="pdf", description="Quiz PDF — /pdf QUIZ_ID"),
+            BotCommand(command="cancel", description="Current process रोकें"),
+        ])
+    except Exception:
+        pass  # command menu is optional; never block bot start-up
     try:
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     finally:
