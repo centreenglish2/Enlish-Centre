@@ -17,6 +17,7 @@ from pymongo.errors import PyMongoError
 from pdfgen.generator import generate_pdf
 from pdfgen.omr import generate_omr_pdf
 from pdfgen.parser import Question, parse_questions
+from pdfgen.paper_generator import generate_paper_pdf
 
 BASE = Path(__file__).resolve().parent
 DATA = BASE / "data"
@@ -70,6 +71,7 @@ HELP = (
     "3. Quiz ID मिलेगा।\n"
     "4. /pdf QUIZ_ID भेजकर PDF लें।\n\n"
     "Layout चुनने के लिए /toggle 50 या /toggle 100 भेजें।\n"
+    "Question Paper: /toggle paper on या /toggle paper off; TXT पर reply करके /paper भेजें।\n"
     "OMR enable/disable: /toggle omr on या /toggle omr off\n"
     "OMR PDF: /omr 1 to 100 (किसी भी question range के लिए)\n"
     "/toggle 50 = 25 questions/page (बड़े और साफ़), /toggle 100 = 50 questions/page।\n"
@@ -105,6 +107,21 @@ async def txt_upload(message: Message, state: FSMContext):
     filename = doc.file_name or "questions.txt"
     if not filename.lower().endswith(".txt"):
         await message.answer("❌ केवल .txt file upload करें।")
+        return
+
+    # When Question Paper mode is enabled, keep this upload for the /paper reply flow.
+    try:
+        client, database = get_mongo()
+        settings = database.user_settings.find_one({"_id": message.from_user.id}) or {}
+        client.close()
+    except PyMongoError as exc:
+        await message.answer(f"❌ MongoDB error: {type(exc).__name__}: {exc}")
+        return
+    if settings.get("paper_enabled", False):
+        await message.answer(
+            "✅ TXT file मिल गई। अब इसी file के reply में /paper भेजें。\n"
+            "PDF में TXT का दिया हुआ content ही रखा जाएगा; कोई समय, अंक या खंड अपने आप नहीं जोड़ा जाएगा।"
+        )
         return
 
     await state.clear()
@@ -222,26 +239,26 @@ async def get_set_no(message: Message, state: FSMContext):
 @dp.message(Command("toggle"))
 async def toggle_cmd(message: Message):
     parts = (message.text or "").split()
-    if len(parts) == 3 and parts[1].lower() == "omr" and parts[2].lower() in {"on", "off"}:
+    if len(parts) == 3 and parts[1].lower() == "paper" and parts[2].lower() in {"on", "off"}:
         enabled = parts[2].lower() == "on"
         try:
             client, database = get_mongo()
             database.user_settings.update_one(
                 {"_id": message.from_user.id},
-                {"$set": {"omr_enabled": enabled}},
+                {"$set": {"paper_enabled": enabled}},
                 upsert=True,
             )
             client.close()
         except PyMongoError as exc:
             await message.answer(f"❌ MongoDB error: {type(exc).__name__}: {exc}")
             return
-        await message.answer("✅ OMR function ENABLED है। अब /omr 1 to 100 भेजें।" if enabled else "⛔ OMR function DISABLED है।")
+        await message.answer("✅ Question Paper: " + ("ENABLED" if enabled else "DISABLED"))
         return
 
     if len(parts) != 2 or parts[1].strip() not in {"50", "100"}:
         await message.answer(
-            "Usage:\n/toggle 50 या /toggle 100 — PDF layout\n"
-            "/toggle omr on — OMR enable\n/toggle omr off — OMR disable"
+            "Usage:\n/toggle 50\n/toggle 100\n/toggle paper on\n/toggle paper off\n\n"
+            "50 = 25 questions per page; 100 = 50 questions per page."
         )
         return
     mode = int(parts[1].strip())
@@ -262,22 +279,14 @@ async def toggle_cmd(message: Message):
         await message.answer("✅ PDF layout set: 100\n50 questions per page — 25 left + 25 right.")
 
 
-@dp.message(Command("omr"))
-async def omr_cmd(message: Message):
-    parts = (message.text or "").strip().split()
-    if len(parts) != 4 or parts[1].lower() != "to" and not parts[2].lower() == "to":
-        # Accept the documented form: /omr 1 to 100
-        if len(parts) != 4 or parts[2].lower() != "to":
-            await message.answer("Usage: /omr 1 to 100\nExample: /omr 101 to 200")
-            return
-    try:
-        start, end = int(parts[1]), int(parts[3])
-    except (ValueError, IndexError):
-        await message.answer("❌ Range सही नहीं है। उदाहरण: /omr 1 to 100")
+@dp.message(Command("paper"))
+async def paper_cmd(message: Message):
+    replied = message.reply_to_message
+    doc = replied.document if replied else None
+    if not doc or not (doc.file_name or "").lower().endswith(".txt"):
+        await message.answer("❌ TXT file के message पर Reply करके /paper भेजें।")
         return
-    if start < 1 or end < start or end - start > 999:
-        await message.answer("❌ Range 1 से शुरू हो और अधिकतम 1000 questions तक होनी चाहिए।")
-        return
+
     try:
         client, database = get_mongo()
         settings = database.user_settings.find_one({"_id": message.from_user.id}) or {}
@@ -285,17 +294,28 @@ async def omr_cmd(message: Message):
     except PyMongoError as exc:
         await message.answer(f"❌ MongoDB error: {type(exc).__name__}: {exc}")
         return
-    if not settings.get("omr_enabled", False):
-        await message.answer("⛔ OMR function अभी DISABLED है। पहले /toggle omr on भेजें।")
+    if not settings.get("paper_enabled", False):
+        await message.answer("⛔ Question Paper function disabled है। पहले /toggle paper on करें।")
         return
-    status = await message.answer(f"⏳ OMR Answer Sheet {start}–{end} बना रहा हूँ...")
+
+    safe = re.sub(r"[^A-Za-z0-9._-]", "_", doc.file_name or "paper.txt")
+    source = UPLOADS / f"paper_{message.from_user.id}_{uuid.uuid4().hex[:8]}_{safe}"
+    output = GENERATED / f"Question_Paper_{message.from_user.id}_{uuid.uuid4().hex[:8]}.pdf"
+    status = await message.answer("⏳ TXT से Question Paper PDF बना रहा हूँ...")
     try:
-        output = GENERATED / f"OMR_{start}_to_{end}_{message.from_user.id}.pdf"
-        generate_omr_pdf(start, end, output)
-        await message.answer_document(FSInputFile(output), caption=f"📄 OMR Answer Sheet\nQuestions: {start}–{end}")
-        await status.delete()
+        await bot.download(doc, destination=source)
+        try:
+            raw_text = source.read_text(encoding="utf-8-sig")
+        except UnicodeDecodeError:
+            raw_text = source.read_text(encoding="utf-8", errors="replace")
+        generate_paper_pdf(raw_text, output)
+        await message.answer_document(
+            FSInputFile(output),
+            caption="📄 Question Paper PDF तैयार है।\nTXT में जो content दिया गया था, उसी के आधार पर बनाया गया है।",
+        )
+        await status.edit_text("✅ Question Paper generated.")
     except Exception as exc:
-        await status.edit_text(f"❌ OMR PDF error: {type(exc).__name__}: {exc}")
+        await status.edit_text(f"❌ Question Paper error: {type(exc).__name__}: {exc}")
 
 
 @dp.message(Command("pdf"))
