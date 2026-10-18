@@ -303,7 +303,13 @@ async def paper_cmd(message: Message):
     output = GENERATED / f"Question_Paper_{message.from_user.id}_{uuid.uuid4().hex[:8]}.pdf"
     status = await message.answer("⏳ TXT से Question Paper PDF बना रहा हूँ...")
     try:
-        await bot.download(doc, destination=source)
+        # Resolve the Telegram file_id to a fresh file_path before downloading.
+        # Passing the whole Document object to bot.download() can cause Telegram
+        # to receive an invalid file identifier on some aiogram versions.
+        telegram_file = await bot.get_file(doc.file_id)
+        if not telegram_file.file_path:
+            raise RuntimeError("Telegram ने इस TXT file का download path नहीं दिया। कृपया TXT दोबारा upload करें।")
+        await bot.download_file(telegram_file.file_path, destination=source)
         try:
             raw_text = source.read_text(encoding="utf-8-sig")
         except UnicodeDecodeError:
