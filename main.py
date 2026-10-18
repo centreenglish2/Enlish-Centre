@@ -280,8 +280,12 @@ async def get_set_no(message: Message, state: FSMContext):
         f"✅ Quiz ready!\n\n"
         f"Quiz ID: `{quiz_id}`\n"
         f"Questions: {data['question_count']}\n\n"
-        f"PDF लेने के लिए भेजें:\n`/pdf {quiz_id}`",
+        "PDF लेने के लिए नीचे का बटन दबाएँ 👇\n"
+        f"(या भेजें: `/pdf {quiz_id}`)",
         parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📄 Get PDF", callback_data=f"getpdf:{quiz_id}")],
+        ]),
     )
 
     # Start rendering the PDF now, in the background, so /pdf is instant later.
@@ -638,36 +642,35 @@ async def prebuild_pdf(quiz_id: str, user_id: int):
         pass  # /pdf will simply render it on demand
 
 
-@dp.message(Command("pdf"))
-async def pdf_cmd(message: Message):
-    parts = (message.text or "").split(maxsplit=1)
-    if len(parts) != 2:
-        await message.answer("Usage: `/pdf QUIZ_ID`", parse_mode="Markdown")
-        return
-    quiz_id = parts[1].strip().upper()
+PDF_IN_PROGRESS: set = set()
+
+
+async def deliver_quiz_pdf(target: Message, user_id: int, quiz_id: str):
+    """Send the PDF of a quiz to the chat of `target`. Used by /pdf and the Get PDF button."""
+    quiz_id = quiz_id.strip().upper()
     try:
         client, database = get_mongo()
         row = database.quizzes.find_one({"_id": quiz_id})
         client.close()
     except PyMongoError as exc:
-        await message.answer(f"❌ MongoDB error: {type(exc).__name__}: {exc}")
+        await target.answer(f"❌ MongoDB error: {type(exc).__name__}: {exc}")
         return
     if not row:
-        await message.answer("❌ Quiz ID नहीं मिला।")
+        await target.answer("❌ Quiz ID नहीं मिला।")
         return
-    if row.get("user_id") != message.from_user.id:
-        await message.answer("❌ यह Quiz ID आपके account की नहीं है।")
+    if row.get("user_id") != user_id:
+        await target.answer("❌ यह Quiz ID आपके account की नहीं है।")
         return
 
     try:
         client, database = get_mongo()
-        settings = database.user_settings.find_one({"_id": message.from_user.id}) or {}
+        settings = database.user_settings.find_one({"_id": user_id}) or {}
         client.close()
         pdf_mode = int(settings.get("pdf_mode", 100))
         if pdf_mode not in (50, 100):
             pdf_mode = 100
     except PyMongoError as exc:
-        await message.answer(f"❌ MongoDB error: {type(exc).__name__}: {exc}")
+        await target.answer(f"❌ MongoDB error: {type(exc).__name__}: {exc}")
         return
 
     cache_key = f"{PDF_CACHE_VERSION}_{pdf_mode}"
@@ -675,20 +678,26 @@ async def pdf_cmd(message: Message):
     if cached_id:
         # Same quiz + same layout was already generated: resend instantly.
         try:
-            await message.answer_document(
+            await target.answer_document(
                 cached_id, caption=f"📄 Quiz ID: {quiz_id}\n{row.get('question_count', '')} questions"
             )
             return
         except TelegramBadRequest:
             pass  # file_id expired/invalid -> regenerate below
 
+    progress_key = (quiz_id, pdf_mode)
+    if progress_key in PDF_IN_PROGRESS:
+        await target.answer("⏳ यह PDF पहले से बन रहा है, थोड़ा रुकें।")
+        return
+    PDF_IN_PROGRESS.add(progress_key)
+
     per_page = 25 if pdf_mode == 50 else 50
-    status = await message.answer(f"⏳ PDF बना रहा हूँ... {per_page} questions/page layout तैयार हो रहा है।")
+    status = await target.answer(f"⏳ PDF बना रहा हूँ... {per_page} questions/page layout तैयार हो रहा है।")
     output = None
     try:
         output, question_count = await render_quiz_pdf(row, pdf_mode)
         await status.edit_text("✅ PDF तैयार है।")
-        sent = await message.answer_document(FSInputFile(output), caption=f"📄 Quiz ID: {quiz_id}\n{question_count} questions")
+        sent = await target.answer_document(FSInputFile(output), caption=f"📄 Quiz ID: {quiz_id}\n{question_count} questions")
         try:
             if sent.document:
                 client, database = get_mongo()
@@ -699,8 +708,28 @@ async def pdf_cmd(message: Message):
     except Exception as exc:
         await status.edit_text(f"❌ PDF generation error: {type(exc).__name__}: {exc}")
     finally:
+        PDF_IN_PROGRESS.discard(progress_key)
         if output is not None:
             output.unlink(missing_ok=True)  # keep the small free-tier disk clean
+
+
+@dp.message(Command("pdf"))
+async def pdf_cmd(message: Message):
+    parts = (message.text or "").split(maxsplit=1)
+    if len(parts) != 2:
+        await message.answer("Usage: `/pdf QUIZ_ID`", parse_mode="Markdown")
+        return
+    await deliver_quiz_pdf(message, message.from_user.id, parts[1])
+
+
+@dp.callback_query(F.data.startswith("getpdf:"))
+async def get_pdf_button(callback: CallbackQuery):
+    if not isinstance(callback.message, Message):
+        await callback.answer("Message पुराना हो गया है। /pdf QUIZ_ID भेजें।", show_alert=True)
+        return
+    quiz_id = (callback.data or "").split(":", 1)[1]
+    await callback.answer("⏳ PDF भेज रहा हूँ...")
+    await deliver_quiz_pdf(callback.message, callback.from_user.id, quiz_id)
 
 
 async def health(request):
