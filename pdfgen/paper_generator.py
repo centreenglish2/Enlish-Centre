@@ -83,7 +83,7 @@ def generate_paper_pdf(raw_text: str, output_path: Path, headline: str = ""):
 @font-face {{font-family:NotoDev;src:url("{BOLD.as_uri()}");font-weight:700}}
 @page {{size:A4;margin:17mm 16mm 16mm; @bottom-center {{content:counter(page);font:8pt NotoDev;color:#555}}}}
 * {{box-sizing:border-box}}
-body {{margin:0;color:#111;background:#fff;font-family:NotoDev,"DejaVu Sans",sans-serif;font-size:11pt;line-height:1.45}}
+body {{margin:0;color:#111;background:#fff;font-family:NotoDev,"DejaVu Sans",sans-serif;font-size:15pt;line-height:1.45}}
 .title {{text-align:center;font-size:16pt;font-weight:700;margin:0 0 1.5mm;white-space:pre-wrap;overflow-wrap:anywhere}}
 .subtitle {{text-align:center;font-size:12pt;font-weight:700;margin:0 0 5mm;white-space:pre-wrap;overflow-wrap:anywhere}}
 .line {{white-space:pre-wrap;overflow-wrap:anywhere;min-height:1em}}
