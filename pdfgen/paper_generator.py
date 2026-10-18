@@ -1,4 +1,4 @@
-"""Generate a question-paper PDF from the supplied TXT without inventing content."""
+"""Generate a question-paper PDF from supplied TXT with automatic heading detection."""
 from html import escape
 from pathlib import Path
 import re
@@ -10,32 +10,46 @@ FONT_DIR = BASE / "fonts"
 REGULAR = FONT_DIR / "NotoSansDevanagari-Regular.ttf"
 BOLD = FONT_DIR / "NotoSansDevanagari-Bold.ttf"
 
-SECTION_RE = re.compile(r"^\s*(?:खंड|खण्ड|section|part)\s*[-–—:]?\s*[अ-अA-Z0-9IVX०-९]+.*$", re.I)
+SECTION_RE = re.compile(r"^\s*(?:खंड|खण्ड|section|part)\s*[-–—:]?.*$", re.I)
 QUESTION_RE = re.compile(r"^\s*(?:प्रश्न\s*)?\d{1,4}\s*[.)।:-]\s*.+$")
 META_RE = re.compile(r"^\s*(?:समय|पूर्णांक|पूर्ण\s*अंक|अधिकतम\s*अंक|time|duration|max(?:imum)?\s*marks|marks)\s*[:：].*$", re.I)
+CHAPTER_RE = re.compile(r"^\s*(?:अध्याय|पाठ|विषय|chapter|lesson|subject)\s*[:：].*", re.I)
+INSTRUCTION_RE = re.compile(r"^\s*(?:निर्देश|निर्देशः|instructions?|note)\s*[:：]?.*$", re.I)
+MARKS_LINE_RE = re.compile(r"^\s*\d+\s*[×xX*]\s*\d+\s*=\s*\d+.*$", re.I)
 
 
 def generate_paper_pdf(raw_text: str, output_path: Path, headline: str = ""):
-    """Format only supplied lines; no default marks, time, sections, or questions are added."""
+    """Format supplied lines only; never add missing marks, time, sections, or questions."""
     raw_text = clean_ai_span_markers(raw_text or "")
     lines = raw_text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
-    if not any(line.strip() for line in lines):
+    nonempty_indices = [i for i, line in enumerate(lines) if line.strip()]
+    if not nonempty_indices:
         raise ValueError("TXT file is empty")
+    first_index = nonempty_indices[0]
+    second_index = nonempty_indices[1] if len(nonempty_indices) > 1 else None
 
     rendered = []
-    first_nonempty_seen = False
-    for line in lines:
-        if not line.strip():
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped:
             rendered.append('<div class="blank"></div>')
             continue
         value = escape(line, quote=True)
-        if not first_nonempty_seen:
-            first_nonempty_seen = True
-            rendered.append(f'<div class="first-line">{value}</div>')
+        if index == first_index:
+            rendered.append(f'<div class="title">{value}</div>')
+        elif index == second_index and not SECTION_RE.match(line):
+            # The second non-empty line is commonly the class/subject subtitle.
+            rendered.append(f'<div class="subtitle">{value}</div>')
         elif SECTION_RE.match(line):
             rendered.append(f'<div class="section">{value}</div>')
+        elif MARKS_LINE_RE.match(line):
+            rendered.append(f'<div class="marks-line">{value}</div>')
         elif META_RE.match(line):
             rendered.append(f'<div class="metadata">{value}</div>')
+        elif CHAPTER_RE.match(line):
+            rendered.append(f'<div class="chapter">{value}</div>')
+        elif INSTRUCTION_RE.match(line):
+            rendered.append(f'<div class="instructions">{value}</div>')
         elif QUESTION_RE.match(line):
             rendered.append(f'<div class="question">{value}</div>')
         elif re.match(r"^\s*(?:[A-Da-d][).:]|[क-घ][).:])\s*", line):
@@ -51,11 +65,15 @@ def generate_paper_pdf(raw_text: str, output_path: Path, headline: str = ""):
 @page {{size:A4;margin:17mm 16mm 16mm; @bottom-center {{content:counter(page);font:8pt NotoDev;color:#555}}}}
 * {{box-sizing:border-box}}
 body {{margin:0;color:#111;background:#fff;font-family:NotoDev,"DejaVu Sans",sans-serif;font-size:11pt;line-height:1.45}}
-.first-line {{text-align:center;font-size:16pt;font-weight:700;margin:0 0 5mm;white-space:pre-wrap}}
+.title {{text-align:center;font-size:16pt;font-weight:700;margin:0 0 1.5mm;white-space:pre-wrap;overflow-wrap:anywhere}}
+.subtitle {{text-align:center;font-size:12pt;font-weight:700;margin:0 0 5mm;white-space:pre-wrap;overflow-wrap:anywhere}}
 .line {{white-space:pre-wrap;overflow-wrap:anywhere;min-height:1em}}
 .metadata {{font-weight:700;margin:1.5mm 0;white-space:pre-wrap}}
+.chapter {{font-weight:700;margin:2mm 0;white-space:pre-wrap;overflow-wrap:anywhere}}
+.instructions {{font-weight:700;margin:2mm 0;white-space:pre-wrap;overflow-wrap:anywhere}}
 .section {{font-weight:700;text-align:left;margin:4mm 0 1.5mm;padding-bottom:1mm;border-bottom:.5pt solid #555;white-space:pre-wrap;break-after:avoid}}
-.question {{margin:1.8mm 0 .5mm;white-space:pre-wrap;overflow-wrap:anywhere;break-inside:avoid}}
+.marks-line {{font-weight:700;margin:1mm 0 2mm;white-space:pre-wrap}}
+.question {{font-weight:700;margin:1.8mm 0 .5mm;white-space:pre-wrap;overflow-wrap:anywhere;break-inside:avoid}}
 .option {{padding-left:7mm;white-space:pre-wrap;overflow-wrap:anywhere;break-inside:avoid}}
 .blank {{height:2.2mm}}
 </style></head><body>{''.join(rendered)}</body></html>'''
