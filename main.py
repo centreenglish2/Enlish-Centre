@@ -123,9 +123,9 @@ HELP = (
     "/paper — Question Paper (TXT पर reply)\n"
     "/omr 1 to 100 — OMR sheet\n"
     "/cancel — चल रहा process रोकें\n\n"
-    "╭─────────────────╮\n"
+    "╭────────────────╮\n"
     "│ 💐 𝐃𝐢𝐫. 𝐃𝐞𝐞𝐩𝐚𝐤 𝐒𝐢𝐫 💐      │\n"
-    "╰─────────────────╯"
+    "╰────────────────╯"
 )
 
 @dp.message(Command("start"))
