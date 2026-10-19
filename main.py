@@ -110,7 +110,7 @@ HELP = (
     "3. Quiz ID मिलेगा।\n"
     "4. /pdf QUIZ_ID भेजकर PDF लें।\n"
     "किसी optional field को छोड़ने के लिए /skip भेजें।\n\n"
-    "⚙️ Settings (inline buttons)\n"
+    "⚙️ Settings \n"
     "/settings या /toggle भेजें — बटन से ये बदलें:\n"
     "• 📄 PDF Layout: 50 = 25 questions/page (बड़े और साफ़), 100 = 50 questions/page\n"
     "• 📜 Question Paper: ON करके TXT पर reply में /paper भेजें\n"
@@ -123,9 +123,9 @@ HELP = (
     "/paper — Question Paper (TXT पर reply)\n"
     "/omr 1 to 100 — OMR sheet\n"
     "/cancel — चल रहा process रोकें\n\n"
-    "╭────────────────────────────╮\n"
-    "│ 💐 𝐃𝐢𝐫. 𝐃𝐞𝐞𝐩𝐚𝐤 𝐒𝐢𝐫 💐 │\n"
-    "╰────────────────────────────╯"
+    "╭──────────────────────╮\n"
+    "│ 💐 𝐃𝐢𝐫. 𝐃𝐞𝐞𝐩𝐚𝐤 𝐒𝐢𝐫 💐     │\n"
+    "╰──────────────────────╯"
 )
 
 @dp.message(Command("start"))
